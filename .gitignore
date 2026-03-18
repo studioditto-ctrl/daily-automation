@@ -1,0 +1,13 @@
+token_debug.json
+credentials.json
+*.env
+.env*
+__pycache__/
+*.pyc
+.DS_Store
+
+# 기존 프로젝트 파일 제외
+.claude/
+asset-tracker/
+exercise-calendar.html
+start-calendar.vbs
