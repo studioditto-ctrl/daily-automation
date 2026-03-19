@@ -11,3 +11,7 @@ __pycache__/
 asset-tracker/
 exercise-calendar.html
 start-calendar.vbs
+
+# Facebook Analyzer - 생성된 리포트 (개인정보 포함 가능)
+facebook-analyzer/reports/daily/
+facebook-analyzer/reports/insights/
