@@ -5,235 +5,281 @@ GitHub Actions cron: '0 0 * * *' (UTC 00:00 = KST 09:00)
 
 필요한 GitHub Secrets:
   ANTHROPIC_API_KEY
-  GMAIL_CLIENT_ID
-  GMAIL_CLIENT_SECRET
-  GMAIL_REFRESH_TOKEN
+  GMAIL_ADDRESS       (예: your@gmail.com)
+  GMAIL_APP_PASSWORD  (Google 앱 비밀번호 16자리)
+  RECIPIENT_EMAIL     (예: sw78.song@samsung.com)
 """
 
 import os
+import imaplib
+import smtplib
+import email as email_lib
 import base64
-import re
-import sys
-from datetime import datetime, timedelta, timezone
+import quopri
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.header import decode_header
+from datetime import datetime, timedelta, timezone
 
 import anthropic
-from google.oauth2.credentials import Credentials
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
 
-# ── 상수 ──────────────────────────────────────────────────
-RECIPIENT = "sw78.song@samsung.com"
+# ── 상수 ────────────────────────────────────────────────────────────────────
 KST = timezone(timedelta(hours=9))
-SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.send",
-]
+IMAP_HOST = "imap.gmail.com"
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 465
+MAX_EMAILS = 20
 
 
-# ── Gmail 인증 ─────────────────────────────────────────────
-def build_service():
-    creds = Credentials(
-        token=None,
-        refresh_token=os.environ["GMAIL_REFRESH_TOKEN"],
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.environ["GMAIL_CLIENT_ID"],
-        client_secret=os.environ["GMAIL_CLIENT_SECRET"],
-        scopes=SCOPES,
-    )
-    creds.refresh(Request())
-    return build("gmail", "v1", credentials=creds)
+# ── Gmail IMAP ───────────────────────────────────────────────────────────────
+def connect_imap(address: str, app_password: str) -> imaplib.IMAP4_SSL:
+    mail = imaplib.IMAP4_SSL(IMAP_HOST)
+    mail.login(address, app_password)
+    return mail
 
 
-# ── 메일 수집 ──────────────────────────────────────────────
-def get_header(headers: list, name: str) -> str:
-    for h in headers:
-        if h.get("name", "").lower() == name.lower():
-            return h.get("value", "")
-    return ""
+def search_newsletters(mail: imaplib.IMAP4_SSL) -> list[str]:
+    """지난 24시간 내 뉴스레터/프로모션 메일 ID 목록 반환."""
+    mail.select("inbox")
 
-
-def decode_body(payload: dict) -> str:
-    """payload에서 텍스트 본문 추출 (재귀)."""
-    mime = payload.get("mimeType", "")
-    data = payload.get("body", {}).get("data", "")
-
-    if mime == "text/plain" and data:
-        return base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore")
-
-    if mime == "text/html" and data:
-        html = base64.urlsafe_b64decode(data).decode("utf-8", errors="ignore")
-        text = re.sub(r"<[^>]+>", " ", html)
-        return re.sub(r"\s+", " ", text).strip()
-
-    for part in payload.get("parts", []):
-        result = decode_body(part)
-        if result:
-            return result
-    return ""
-
-
-def is_newsletter(sender: str, subject: str) -> bool:
-    keywords = [
-        "newsletter", "noreply", "no-reply", "substack", "digest",
-        "weekly", "daily", "briefing", "roundup", "mailchimp",
-        "뉴스레터", "브리핑", "주간", "일간",
+    # Gmail 전용 검색: Promotions 카테고리 + 최근 1일
+    queries = [
+        'X-GM-RAW "category:promotions newer_than:1d"',
+        'X-GM-RAW "unsubscribe newer_than:1d"',
     ]
-    text = (sender + subject).lower()
-    return any(k in text for k in keywords)
+
+    ids: set[str] = set()
+    for q in queries:
+        try:
+            _, data = mail.search("UTF-8", q)
+            if data and data[0]:
+                ids.update(data[0].split())
+        except Exception:
+            pass
+
+    # fallback: 일반 SINCE 검색
+    if not ids:
+        since = (datetime.now(KST) - timedelta(days=1)).strftime("%d-%b-%Y")
+        _, data = mail.search(None, f'SINCE "{since}"')
+        if data and data[0]:
+            ids.update(data[0].split())
+
+    return list(ids)[:MAX_EMAILS]
 
 
-def fetch_emails(service) -> list[dict]:
-    print("[STEP 2] 뉴스레터 검색 중 (newer_than:1d)...")
-    res = service.users().messages().list(
-        userId="me", q="newer_than:1d", maxResults=50
-    ).execute()
-
-    messages = res.get("messages", [])
-    print(f"        검색 결과: {len(messages)}건")
-
-    results = []
-    for msg in messages:
-        detail = service.users().messages().get(
-            userId="me", id=msg["id"], format="full"
-        ).execute()
-        headers = detail.get("payload", {}).get("headers", [])
-        subject = get_header(headers, "Subject")
-        sender  = get_header(headers, "From")
-        date    = get_header(headers, "Date")
-
-        if not is_newsletter(sender, subject):
-            continue
-
-        body = decode_body(detail.get("payload", {}))[:3000]
-        results.append({"subject": subject, "sender": sender, "date": date, "body": body})
-        print(f"        수집: {subject[:70]}")
-
-    print(f"        필터 후: {len(results)}건")
-    return results
+def decode_str(value: str) -> str:
+    parts = decode_header(value)
+    result = []
+    for b, enc in parts:
+        if isinstance(b, bytes):
+            result.append(b.decode(enc or "utf-8", errors="ignore"))
+        else:
+            result.append(b)
+    return "".join(result)
 
 
-# ── Claude HTML 생성 ───────────────────────────────────────
-def generate_html(emails: list[dict], today_kst: str) -> str:
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+def decode_body(part) -> str:
+    payload = part.get_payload(decode=True)
+    if not payload:
+        return ""
+    charset = part.get_content_charset() or "utf-8"
+    encoding = part.get("Content-Transfer-Encoding", "").lower()
+    if encoding == "quoted-printable":
+        payload = quopri.decodestring(payload)
+    try:
+        return payload.decode(charset, errors="ignore")
+    except Exception:
+        return payload.decode("utf-8", errors="ignore")
 
-    if not emails:
-        email_text = "(오늘 수신된 뉴스레터가 없습니다.)"
+
+def extract_text(msg) -> str:
+    """이메일에서 텍스트 추출 (plain → html 우선순위)."""
+    text = ""
+    if msg.is_multipart():
+        for part in msg.walk():
+            ct = part.get_content_type()
+            cd = str(part.get("Content-Disposition", ""))
+            if "attachment" in cd:
+                continue
+            if ct == "text/plain" and not text:
+                text = decode_body(part)
+            elif ct == "text/html" and not text:
+                # HTML에서 태그 제거
+                raw = decode_body(part)
+                import re
+                raw = re.sub(r"<style[^>]*>.*?</style>", " ", raw, flags=re.DOTALL | re.IGNORECASE)
+                raw = re.sub(r"<script[^>]*>.*?</script>", " ", raw, flags=re.DOTALL | re.IGNORECASE)
+                raw = re.sub(r"<[^>]+>", " ", raw)
+                raw = re.sub(r"\s+", " ", raw)
+                text = raw.strip()
     else:
-        blocks = []
-        for i, e in enumerate(emails, 1):
-            blocks.append(
-                f"[{i}] 제목: {e['subject']}\n"
-                f"    발신: {e['sender']}\n"
-                f"    날짜: {e['date']}\n"
-                f"    본문: {e['body']}\n"
-            )
-        email_text = "\n---\n".join(blocks)
+        text = decode_body(msg)
+    return text[:3000]
 
-    prompt = f"""아래 뉴스레터들을 중요도 순으로 정렬해 HTML 이메일을 생성하세요.
 
-오늘: {today_kst} | 수신자: {RECIPIENT}
+def fetch_emails(mail: imaplib.IMAP4_SSL, ids: list[str]) -> list[dict]:
+    result = []
+    for uid in ids:
+        try:
+            _, data = mail.fetch(uid, "(RFC822)")
+            raw = data[0][1]
+            msg = email_lib.message_from_bytes(raw)
 
-=== 뉴스레터 ===
-{email_text}
+            subject = decode_str(msg.get("Subject", "(제목 없음)"))
+            sender = decode_str(msg.get("From", ""))
+            body = extract_text(msg)
 
-=== 출력 형식 ===
-순수 HTML div만 반환하세요 (<!DOCTYPE>, <html>, <head>, <body> 제외).
-아래 구조를 정확히 따르세요:
+            # 원문 링크 추출 (List-Post, X-Original-URL 등)
+            link = msg.get("List-Archive", "") or msg.get("X-Original-URL", "")
 
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;background:#f0f2f5;padding:28px 16px;">
-<div style="max-width:620px;margin:0 auto;">
+            result.append({
+                "subject": subject,
+                "sender": sender,
+                "body": body,
+                "link": link,
+            })
+        except Exception as e:
+            print(f"  WARN: fetch error for uid {uid}: {e}")
+    return result
+
+
+# ── Claude API ───────────────────────────────────────────────────────────────
+PROMPT_TEMPLATE = """아래 {count}개의 뉴스레터/구독 이메일을 분석해서 한국어 HTML 요약 리포트를 만들어주세요.
+
+오늘: {today}
+
+[이메일 목록]
+{emails}
+
+[규칙]
+- 중요도 순으로 넘버링 (1번이 가장 중요)
+- 각 항목마다 bullet 최대 3개, bullet 1개 = 2줄 이하, 매우 간결하게
+- 핵심 키워드는 <strong> 태그 강조
+- 원문 링크: body에서 http URL 추출, 없으면 발신자 도메인 사용
+- 모든 텍스트는 2줄 이하
+
+[HTML 구조 - 이 형식 그대로 사용]
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+</head>
+<body style="margin:0;padding:28px 16px;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#111827;">
+<div style="max-width:640px;margin:0 auto;">
 
   <!-- 헤더 -->
   <div style="background:#18181b;color:#fff;padding:24px 28px;border-radius:14px 14px 0 0;margin-bottom:2px;">
-    <div style="font-size:18px;font-weight:700;">📋 뉴스레터 요약</div>
-    <div style="font-size:12px;color:#71717a;margin-top:5px;">{today_kst} · N건</div>
+    <div style="font-size:20px;font-weight:800;letter-spacing:-0.3px;">📋 뉴스레터 요약</div>
+    <div style="font-size:12px;color:#a1a1aa;margin-top:6px;">{today} &nbsp;·&nbsp; {count}건 분석</div>
   </div>
 
-  <!-- 각 메일 카드 (번호순, 마지막 카드만 border-radius:0 0 14px 14px) -->
-  <div style="background:#fff;border-left:5px solid #e5e7eb;padding:20px 22px;margin-bottom:3px;">
-    <div style="font-size:17px;font-weight:900;color:#0f172a;line-height:1.4;margin-bottom:12px;">
-      N. 메일 제목
-      <span style="font-weight:400;font-size:13px;margin-left:6px;">(<a href="원문URL" style="color:#6366f1;text-decoration:none;">원문 링크</a>)</span>
+  <!-- 카드들 (아래 구조 반복) -->
+  <div style="background:#ffffff;border-left:4px solid #6366f1;padding:20px 24px;margin-bottom:2px;">
+    <div style="font-size:16px;font-weight:900;color:#0f172a;line-height:1.45;margin-bottom:10px;">
+      <span style="color:#6366f1;font-weight:900;margin-right:6px;">N.</span>제목
+      &nbsp;<a href="원문URL" style="font-size:12px;font-weight:400;color:#6366f1;text-decoration:none;">[원문 →]</a>
     </div>
-    <ul style="padding-left:18px;margin:0;">
-      <li style="font-size:13px;color:#4b5563;line-height:1.7;margin-bottom:4px;">요약 1 — <strong>핵심키워드</strong>.</li>
-      <li style="font-size:13px;color:#4b5563;line-height:1.7;margin-bottom:4px;">요약 2.</li>
-      <li style="font-size:13px;color:#4b5563;line-height:1.7;">요약 3.</li>
+    <ul style="margin:0;padding-left:18px;">
+      <li style="font-size:13px;color:#374151;line-height:1.75;margin-bottom:3px;">bullet 1</li>
+      <li style="font-size:13px;color:#374151;line-height:1.75;margin-bottom:3px;">bullet 2</li>
+      <li style="font-size:13px;color:#374151;line-height:1.75;">bullet 3</li>
     </ul>
   </div>
 
+  <!-- 마지막 카드는 border-radius:0 0 14px 14px 추가 -->
+
   <!-- 푸터 -->
-  <div style="text-align:center;font-size:11px;color:#9ca3af;padding:18px 0 4px;">
-    🤖 Claude 자동 생성 · 매일 오전 9시 · {RECIPIENT}
+  <div style="text-align:center;font-size:11px;color:#9ca3af;padding:20px 0 4px;">
+    🤖 Claude 자동 생성 · 매일 오전 9시 KST
   </div>
 
 </div>
-</div>
+</body>
+</html>
 
-=== 규칙 ===
-- 제목은 원문 그대로 (번역 금지)
-- bullet 최대 3개, 각 2줄 이내, 핵심 키워드 <strong> 강조
-- 원문 링크는 메일 본문의 웹뷰 URL 사용, 없으면 "#" 사용
-- HTML 코드블록(```) 없이 순수 HTML만 반환
-"""
+완성된 HTML 코드만 반환하세요. 설명 없이."""
 
-    print("[STEP 3] Claude API 호출 중...")
-    resp = client.messages.create(
-        model="claude-sonnet-4-6",
+
+def generate_html(emails: list[dict], today: str) -> str:
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+    email_text = ""
+    for i, e in enumerate(emails, 1):
+        email_text += f"--- [{i}] ---\n제목: {e['subject']}\n발신: {e['sender']}\n본문: {e['body'][:2000]}\n\n"
+
+    prompt = PROMPT_TEMPLATE.format(
+        count=len(emails),
+        today=today,
+        emails=email_text,
+    )
+
+    msg = client.messages.create(
+        model="claude-opus-4-6",
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
-    html = resp.content[0].text.strip()
-
-    # 혹시 코드블록이 포함됐을 경우 제거
-    html = re.sub(r"^```[a-zA-Z]*\n?", "", html)
-    html = re.sub(r"\n?```$", "", html)
-    print(f"        HTML 생성 완료 ({len(html):,}자)")
-    return html
+    return msg.content[0].text
 
 
-# ── 이메일 발송 ────────────────────────────────────────────
-def send_email(service, html_body: str, today_kst: str):
-    profile = service.users().getProfile(userId="me").execute()
-    sender  = profile.get("emailAddress", "me")
-
+# ── Gmail SMTP 발송 ──────────────────────────────────────────────────────────
+def send_email(address: str, app_password: str, recipient: str, subject: str, html: str):
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = f"📋 뉴스레터 요약 | {today_kst}"
-    msg["From"]    = sender
-    msg["To"]      = RECIPIENT
-    msg.attach(MIMEText("HTML 이메일 클라이언트에서 확인하세요.", "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    msg["Subject"] = subject
+    msg["From"] = address
+    msg["To"] = recipient
+    msg.attach(MIMEText(html, "html", "utf-8"))
 
-    raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
-    sent = service.users().messages().send(userId="me", body={"raw": raw}).execute()
-    print(f"[STEP 4] 발송 완료 → {RECIPIENT} (Message ID: {sent.get('id')})")
+    with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as s:
+        s.login(address, app_password)
+        s.sendmail(address, recipient, msg.as_string())
 
 
-# ── 메인 ──────────────────────────────────────────────────
+# ── main ─────────────────────────────────────────────────────────────────────
 def main():
-    # 환경 변수 체크
-    missing = [e for e in ["ANTHROPIC_API_KEY", "GMAIL_CLIENT_ID",
-                            "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN"]
-               if not os.environ.get(e)]
-    if missing:
-        print(f"[ERROR] 누락된 환경 변수: {', '.join(missing)}")
-        sys.exit(1)
+    address = os.environ["GMAIL_ADDRESS"]
+    app_password = os.environ["GMAIL_APP_PASSWORD"]
+    recipient = os.environ.get("RECIPIENT_EMAIL", address)
 
-    now = datetime.now(KST)
-    today_kst = now.strftime("%Y년 %m월 %d일")
-    print(f"[START] {today_kst} 뉴스레터 다이제스트 시작")
+    now_kst = datetime.now(KST)
+    today = now_kst.strftime("%Y년 %m월 %d일")
+    subject = f"📋 뉴스레터 요약 | {now_kst.strftime('%Y.%m.%d')}"
 
-    print("[STEP 1] Gmail 인증...")
-    service = build_service()
-    print("        인증 완료")
+    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작")
 
-    emails  = fetch_emails(service)
-    html    = generate_html(emails, today_kst)
-    send_email(service, html, today_kst)
+    # 1. Gmail 연결 및 메일 검색
+    print("Gmail 연결 중...")
+    mail = connect_imap(address, app_password)
+    ids = search_newsletters(mail)
+    print(f"메일 {len(ids)}건 발견")
 
-    print("[DONE] 완료")
+    if not ids:
+        html = f"""<body style="font-family:Arial;padding:40px;color:#555;text-align:center;">
+        <h2>📋 뉴스레터 요약 | {today}</h2>
+        <p style="color:#999;">오늘 수신된 뉴스레터가 없습니다.</p>
+        </body>"""
+        send_email(address, app_password, recipient, subject, html)
+        print("빈 리포트 발송 완료")
+        return
+
+    # 2. 메일 본문 읽기
+    print("메일 내용 읽는 중...")
+    emails = fetch_emails(mail, ids)
+    mail.logout()
+    print(f"{len(emails)}건 처리 완료")
+
+    # 3. Claude로 HTML 생성
+    print("Claude로 요약 생성 중...")
+    html = generate_html(emails, today)
+
+    # HTML 태그 감지 안 되면 기본 래핑
+    if "<!DOCTYPE" not in html and "<html" not in html:
+        html = f"<html><body>{html}</body></html>"
+
+    # 4. 이메일 발송
+    print(f"발송 중 → {recipient}")
+    send_email(address, app_password, recipient, subject, html)
+    print("완료!")
 
 
 if __name__ == "__main__":
