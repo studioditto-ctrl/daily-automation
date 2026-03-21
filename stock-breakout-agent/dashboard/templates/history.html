@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>히스토리 — 돌파매매 대시보드</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>📈 돌파매매 후보군</h1>
+      <nav>
+        <a href="/">오늘</a>
+        <a href="/history" class="active">히스토리</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="table-section">
+      <h2>분석 히스토리</h2>
+      {% if summaries %}
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>날짜</th>
+              <th>1차 후보군</th>
+              <th>2차 후보군</th>
+              <th>분석 완료 시각</th>
+              <th>상세</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in summaries %}
+            <tr>
+              <td class="mono">{{ s.date }}</td>
+              <td class="center">{{ s.first_count }}개</td>
+              <td class="center">
+                <span class="{% if s.second_count > 0 %}badge-count{% endif %}">{{ s.second_count }}개</span>
+              </td>
+              <td>{{ s.saved_at[:16] if s.saved_at else '-' }}</td>
+              <td class="center">
+                <a href="/candidates/{{ s.date }}" class="chart-link">보기 →</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <div class="empty-state">저장된 분석 결과가 없습니다.</div>
+      {% endif %}
+    </section>
+  </main>
+
+  <footer>
+    <p>주식 투자에는 원금 손실의 위험이 있습니다. 본 시스템의 정보는 투자 권유가 아닙니다.</p>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>돌파매매 후보군 대시보드</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>📈 돌파매매 후보군</h1>
+      <nav>
+        <a href="/">오늘</a>
+        <a href="/history">히스토리</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- 날짜 선택 + 실행 버튼 -->
+    <section class="control-bar">
+      <div class="date-selector">
+        <label>날짜 선택</label>
+        <select onchange="location.href='/candidates/'+this.value">
+          {% for d in dates %}
+          <option value="{{ d }}" {% if d == current_date %}selected{% endif %}>{{ d }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="pipeline-controls">
+        {% if pipeline_status.running %}
+          <span class="badge badge-running">⏳ 분석 실행 중...</span>
+        {% else %}
+          <button class="btn-run" onclick="runPipeline()">▶ 지금 실행</button>
+          {% if pipeline_status.last_run %}
+            <span class="last-run">마지막 실행: {{ pipeline_status.last_run[:16] }}</span>
+          {% endif %}
+        {% endif %}
+      </div>
+    </section>
+
+    <!-- 요약 카드 -->
+    <section class="summary-cards">
+      <div class="card">
+        <div class="card-label">분석 기준일</div>
+        <div class="card-value">{{ data.date }}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">1차 후보군 (RS 기반)</div>
+        <div class="card-value">{{ data.first_count }}개</div>
+      </div>
+      <div class="card card-highlight">
+        <div class="card-label">2차 후보군 (돌파 조건)</div>
+        <div class="card-value">{{ data.second_count }}개</div>
+      </div>
+      {% if data.saved_at %}
+      <div class="card">
+        <div class="card-label">분석 완료 시각</div>
+        <div class="card-value small">{{ data.saved_at[:16] }}</div>
+      </div>
+      {% endif %}
+    </section>
+
+    <!-- 2차 후보군 테이블 -->
+    <section class="table-section">
+      <h2>2차 후보군 — 돌파매매 대상</h2>
+      {% if data.second_stage %}
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>종목코드</th>
+              <th>종목명</th>
+              <th>RS점수</th>
+              <th>돌파점수</th>
+              <th>충족 조건</th>
+              <th>진입가</th>
+              <th>손절가</th>
+              <th>목표가</th>
+              <th>차트</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in data.second_stage %}
+            <tr>
+              <td class="center">{{ loop.index }}</td>
+              <td class="mono">{{ s.code }}</td>
+              <td class="name">{{ s.name or '-' }}</td>
+              <td class="center">
+                <span class="rs-badge {% if s.rs_score >= 90 %}rs-high{% elif s.rs_score >= 80 %}rs-mid{% else %}rs-low{% endif %}">
+                  {{ s.rs_score }}
+                </span>
+              </td>
+              <td class="center">{{ s.score or '-' }}/4</td>
+              <td class="signals">
+                {% if s.signals %}
+                  {% for sig in s.signals %}
+                    <span class="signal-tag">{{ sig }}</span>
+                  {% endfor %}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="price">{{ "{:,.0f}".format(s.entry_price) if s.entry_price else '-' }}</td>
+              <td class="price stop">{{ "{:,.0f}".format(s.stop_price) if s.stop_price else '-' }}</td>
+              <td class="price target">{{ "{:,.0f}".format(s.target_price) if s.target_price else '-' }}</td>
+              <td class="center">
+                <a href="{{ s.chart_url }}" target="_blank" class="chart-link">차트 ↗</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+        <div class="empty-state">
+          {% if data.date == current_date %}
+            오늘 분석 결과가 없습니다. "지금 실행" 버튼을 눌러 분석을 시작하세요.
+          {% else %}
+            {{ data.date }} 날짜의 분석 결과가 없습니다.
+          {% endif %}
+        </div>
+      {% endif %}
+    </section>
+
+    <!-- 1차 후보군 접기/펼치기 -->
+    {% if data.first_stage %}
+    <section class="table-section">
+      <h2>
+        1차 후보군 — RS 상위 종목
+        <button class="btn-toggle" onclick="toggleFirstStage()">펼치기</button>
+      </h2>
+      <div id="first-stage-table" style="display:none">
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>종목코드</th>
+                <th>종목명</th>
+                <th>RS점수</th>
+                <th>섹터</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in data.first_stage %}
+              <tr>
+                <td class="center">{{ loop.index }}</td>
+                <td class="mono">{{ s.code }}</td>
+                <td>{{ s.name or '-' }}</td>
+                <td class="center">
+                  <span class="rs-badge {% if s.rs_score >= 90 %}rs-high{% elif s.rs_score >= 80 %}rs-mid{% else %}rs-low{% endif %}">
+                    {{ s.rs_score }}
+                  </span>
+                </td>
+                <td>{{ s.sector or '-' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+    {% endif %}
+  </main>
+
+  <footer>
+    <p>주식 투자에는 원금 손실의 위험이 있습니다. 본 시스템의 정보는 투자 권유가 아닙니다.</p>
+  </footer>
+
+  <script>
+    function runPipeline() {
+      if (!confirm('분석을 실행하시겠습니까? (수 분 소요)')) return;
+      fetch('/api/run', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+          if (d.status === 'started') {
+            alert('분석을 시작했습니다. 잠시 후 페이지를 새로고침하세요.');
+            pollStatus();
+          } else if (d.status === 'already_running') {
+            alert('이미 실행 중입니다.');
+          }
+        });
+    }
+
+    function pollStatus() {
+      const timer = setInterval(() => {
+        fetch('/api/status')
+          .then(r => r.json())
+          .then(d => {
+            if (!d.running) {
+              clearInterval(timer);
+              location.reload();
+            }
+          });
+      }, 5000);
+    }
+
+    function toggleFirstStage() {
+      const el = document.getElementById('first-stage-table');
+      const btn = document.querySelector('.btn-toggle');
+      if (el.style.display === 'none') {
+        el.style.display = 'block';
+        btn.textContent = '접기';
+      } else {
+        el.style.display = 'none';
+        btn.textContent = '펼치기';
+      }
+    }
+  </script>
+</body>
+</html>
