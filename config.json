@@ -1,3 +1,6 @@
 {
-  "max_emails": 20
+  "max_emails": 20,
+  "recipient_emails": [
+    "studioditto@gmail.com"
+  ]
 }
