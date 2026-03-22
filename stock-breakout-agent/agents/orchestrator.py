@@ -11,6 +11,12 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
+# Windows cp949 콘솔에서 이모지/한자 깨짐 방지
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from datetime import datetime
 from agents.data_collector import DataCollectorAgent
 from agents.chart_analyst import ChartAnalystAgent
@@ -98,7 +104,7 @@ async def run_daily() -> dict:
         }
     """
     start_time = datetime.now()
-    print(f"\n[Orchestrator] 파이프라인 시작 — {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"\n[Orchestrator] 파이프라인 시작 - {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
     # ── Step 1: 1차 후보군 수집 ──
     print("\n[Orchestrator] Step 1: RS 데이터 수집 중...")

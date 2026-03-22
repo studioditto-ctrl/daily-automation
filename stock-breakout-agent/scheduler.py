@@ -51,7 +51,7 @@ def main():
     )
 
     scheduler.start()
-    print("[Scheduler] 시작됨 — 평일 15:30 KST 자동 실행")
+    print("[Scheduler] 시작됨 - 평일 15:30 KST 자동 실행")
     print("[Scheduler] 즉시 실행하려면: python scheduler.py --now")
     print("[Scheduler] 중지: Ctrl+C")
 

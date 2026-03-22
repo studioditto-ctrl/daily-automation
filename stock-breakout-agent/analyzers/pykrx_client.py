@@ -1,17 +1,18 @@
 """
-pykrx 기반 한국 주식 OHLCV 데이터 래퍼
+FinanceDataReader 기반 한국 주식 OHLCV 데이터 래퍼
 - 일봉 데이터, 52주 신고가, 거래량 배수 등 제공
+- FinanceDataReader: 영문 컬럼 (Open, High, Low, Close, Volume)
 """
 from datetime import datetime, timedelta
 
 import pandas as pd
-from pykrx import stock
+import FinanceDataReader as fdr
 
 import config
 
 
 def _to_str(d: datetime) -> str:
-    return d.strftime("%Y%m%d")
+    return d.strftime("%Y-%m-%d")
 
 
 def get_ohlcv(code: str, period: int = None) -> pd.DataFrame:
@@ -30,25 +31,33 @@ def get_ohlcv(code: str, period: int = None) -> pd.DataFrame:
         period = config.LOOKBACK_DAYS
 
     end = datetime.today()
-    # 영업일 기준 period일 ≈ 달력 기준 period * 1.5일 (주말/공휴일 여유분)
+    # 영업일 기준 period일 약 달력 기준 period * 1.5일 (주말/공휴일 여유분)
     start = end - timedelta(days=int(period * 1.5))
 
-    df = stock.get_market_ohlcv_by_date(_to_str(start), _to_str(end), code)
+    try:
+        df = fdr.DataReader(code, _to_str(start), _to_str(end))
+    except Exception:
+        return pd.DataFrame()
+
     if df is None or df.empty:
         return pd.DataFrame()
 
     df.index = pd.to_datetime(df.index)
-    df.columns = [c.strip() for c in df.columns]
-    # pykrx 컬럼명: 시가, 고가, 저가, 종가, 거래량 → 영문으로 통일
-    rename_map = {"시가": "Open", "고가": "High", "저가": "Low", "종가": "Close", "거래량": "Volume"}
-    df = df.rename(columns=rename_map)
-    return df[["Open", "High", "Low", "Close", "Volume"]].tail(period)
+
+    # FinanceDataReader 컬럼: Open, High, Low, Close, Volume
+    required = ["Open", "High", "Low", "Close", "Volume"]
+    available = [c for c in required if c in df.columns]
+    if len(available) < 4:
+        return pd.DataFrame()
+
+    df = df[available].copy()
+    return df.tail(period)
 
 
 def get_52w_high(code: str) -> float:
     """52주(약 250 영업일) 최고가 반환. 데이터 없으면 0.0"""
     df = get_ohlcv(code, period=250)
-    if df.empty:
+    if df.empty or "High" not in df.columns:
         return 0.0
     return float(df["High"].max())
 
@@ -59,13 +68,13 @@ def get_volume_ratio(code: str, period: int = 20) -> float:
     데이터 부족 시 0.0 반환.
     """
     df = get_ohlcv(code, period=period + 1)
-    if df.empty or len(df) < 2:
+    if df.empty or "Volume" not in df.columns or len(df) < 2:
         return 0.0
     avg_volume = df["Volume"].iloc[:-1].mean()
     today_volume = df["Volume"].iloc[-1]
     if avg_volume == 0:
         return 0.0
-    return round(today_volume / avg_volume, 2)
+    return round(float(today_volume / avg_volume), 2)
 
 
 def get_moving_averages(df: pd.DataFrame, windows: list[int] = None) -> dict[int, pd.Series]:
@@ -81,12 +90,18 @@ def get_moving_averages(df: pd.DataFrame, windows: list[int] = None) -> dict[int
     """
     if windows is None:
         windows = [5, 20, 60, 120]
+    if "Close" not in df.columns:
+        return {}
     return {w: df["Close"].rolling(w).mean() for w in windows}
 
 
 def get_stock_name(code: str) -> str:
-    """종목코드 → 종목명 반환. 실패 시 빈 문자열"""
+    """종목코드 -> 종목명 반환. 실패 시 빈 문자열"""
     try:
-        return stock.get_market_ticker_name(code)
+        listing = fdr.StockListing("KRX")
+        row = listing[listing["Code"] == code]
+        if not row.empty:
+            return str(row.iloc[0].get("Name", ""))
     except Exception:
-        return ""
+        pass
+    return ""

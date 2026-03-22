@@ -1,20 +1,14 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 # Claude API
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 CLAUDE_MODEL = "claude-sonnet-4-6"
 
-# RS 수집 사이트 — StockEasy (intellio.kr)
-SITE_URL     = os.getenv("SITE_URL",  "https://stockeasy.intellio.kr/")
-LOGIN_URL    = os.getenv("LOGIN_URL", "https://www.intellio.kr/login")
-RS_RANK_URL  = os.getenv("RS_RANK_URL", "https://stockeasy.intellio.kr/rs-rank?tab=integrated_rs")
-
-# Google OAuth 계정 정보 (.env에 설정)
-GOOGLE_EMAIL    = os.getenv("GOOGLE_EMAIL", "")
-GOOGLE_PASSWORD = os.getenv("GOOGLE_PASSWORD", "")
+# RS 계산 기준 (pykrx 자체 계산 — 로그인 불필요)
+RS_MARKETS = ["KOSPI", "KOSDAQ"]  # 대상 시장
 
 # 1차 후보군 필터 기준
 RS_THRESHOLD = int(os.getenv("RS_THRESHOLD", "80"))        # RS 최소 점수

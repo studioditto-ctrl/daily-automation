@@ -25,8 +25,8 @@ TOOLS = [
     {
         "name": "fetch_rs_ranking",
         "description": (
-            "Playwright를 사용해 설정된 사이트에 로그인하고 "
-            "RS(상대강도) 랭킹 데이터를 수집합니다. "
+            "StockEasy API를 호출하여 RS(상대강도) 랭킹 데이터를 수집합니다. "
+            "(.env의 STOCKEASY_COOKIE 사용) "
             "반환값: [{code, name, rs_score, sector}] 형식의 종목 리스트."
         ),
         "input_schema": {
@@ -86,7 +86,7 @@ async def _execute_tool(tool_name: str, tool_input: dict) -> str:
     """Claude가 요청한 도구를 실제 실행하고 결과를 문자열로 반환"""
 
     if tool_name == "fetch_rs_ranking":
-        stocks = await run_collection()
+        stocks = run_collection()  # 동기 함수
         return json.dumps({"stocks": stocks, "count": len(stocks)}, ensure_ascii=False)
 
     elif tool_name == "filter_candidates":

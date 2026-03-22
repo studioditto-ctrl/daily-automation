@@ -172,7 +172,7 @@ class ChartAnalystAgent:
             print("[ChartAnalyst] 1차 후보군이 비어 있음, 종료")
             return []
 
-        print(f"[ChartAnalyst] Agent 시작 — 1차 후보군 {len(first_stage)}개 분석")
+        print(f"[ChartAnalyst] Agent 시작 - 1차 후보군 {len(first_stage)}개 분석")
         _ohlcv_cache.clear()
 
         system_prompt = (
