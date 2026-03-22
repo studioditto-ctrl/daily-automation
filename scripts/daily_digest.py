@@ -11,17 +11,17 @@ GitHub Actions cron: '0 0 * * *' (UTC 00:00 = KST 09:00)
 """
 
 import os
+import re
+import json
 import imaplib
 import smtplib
 import email as email_lib
 import base64
-import quopri
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import decode_header
 from datetime import datetime, timedelta, timezone
 
-import json
 import anthropic
 
 # ── 상수 ────────────────────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ def connect_imap(address: str, app_password: str) -> imaplib.IMAP4_SSL:
     return mail
 
 
-def search_newsletters(mail: imaplib.IMAP4_SSL) -> list[str]:
+def search_newsletters(mail: imaplib.IMAP4_SSL, max_results: int = 20) -> list:
     """지난 24시간 내 뉴스레터/프로모션 메일 ID 목록 반환."""
     mail.select("inbox")
 
@@ -60,7 +60,7 @@ def search_newsletters(mail: imaplib.IMAP4_SSL) -> list[str]:
         'X-GM-RAW "unsubscribe newer_than:1d"',
     ]
 
-    ids: set[str] = set()
+    ids: set = set()
     for q in queries:
         try:
             _, data = mail.search("UTF-8", q)
@@ -72,11 +72,11 @@ def search_newsletters(mail: imaplib.IMAP4_SSL) -> list[str]:
     # fallback: 일반 SINCE 검색
     if not ids:
         since = (datetime.now(KST) - timedelta(days=1)).strftime("%d-%b-%Y")
-        _, data = mail.search(None, f'SINCE "{since}"')
+        _, data = mail.search(None, f"SINCE {since}")  # 따옴표 없이
         if data and data[0]:
             ids.update(data[0].split())
 
-    return list(ids)[:MAX_EMAILS]
+    return list(ids)[:max_results]
 
 
 def decode_str(value: str) -> str:
@@ -91,13 +91,11 @@ def decode_str(value: str) -> str:
 
 
 def decode_body(part) -> str:
+    # decode=True가 base64/QP 전송 인코딩을 자동 처리
     payload = part.get_payload(decode=True)
     if not payload:
         return ""
     charset = part.get_content_charset() or "utf-8"
-    encoding = part.get("Content-Transfer-Encoding", "").lower()
-    if encoding == "quoted-printable":
-        payload = quopri.decodestring(payload)
     try:
         return payload.decode(charset, errors="ignore")
     except Exception:
@@ -118,7 +116,6 @@ def extract_text(msg) -> str:
             elif ct == "text/html" and not text:
                 # HTML에서 태그 제거
                 raw = decode_body(part)
-                import re
                 raw = re.sub(r"<style[^>]*>.*?</style>", " ", raw, flags=re.DOTALL | re.IGNORECASE)
                 raw = re.sub(r"<script[^>]*>.*?</script>", " ", raw, flags=re.DOTALL | re.IGNORECASE)
                 raw = re.sub(r"<[^>]+>", " ", raw)
@@ -276,8 +273,7 @@ def main():
     # 1. Gmail 연결 및 메일 검색
     print("Gmail 연결 중...")
     mail = connect_imap(address, app_password)
-    ids = search_newsletters(mail)
-    ids = ids[:max_emails]
+    ids = search_newsletters(mail, max_results=max_emails)
     print(f"메일 {len(ids)}건 발견")
 
     if not ids:

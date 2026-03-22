@@ -473,11 +473,13 @@ async function loadConfig() {
 }
 
 async function saveConfig(updates) {
+  const prevConfig = { ...config };  // 실패 시 롤백용
   try {
     config = { ...config, ...updates };
     const sha = config._sha;
-    delete config._sha;
-    const content = btoa(unescape(encodeURIComponent(JSON.stringify(config, null, 2) + '\n')));
+    const saveData = { ...config };
+    delete saveData._sha;
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(saveData, null, 2) + '\n')));
     const res = await ghFetch(`/repos/${OWNER}/${REPO}/contents/config.json`, {
       method: 'PUT',
       body: JSON.stringify({
@@ -489,6 +491,7 @@ async function saveConfig(updates) {
     config._sha = res.content.sha;
     return true;
   } catch(e) {
+    config = prevConfig;  // 실패 시 원복
     showToast('저장 실패: ' + e.message, 'error');
     return false;
   }
@@ -592,7 +595,11 @@ async function loadRuns() {
 
     document.getElementById('lastRunIcon').textContent = lIcon;
     document.getElementById('lastRunTime').textContent = lTime;
-    document.getElementById('lastRunBadge').outerHTML = lBadge;
+    const badgeEl = document.getElementById('lastRunBadge');
+    if (badgeEl) {
+      badgeEl.className = `last-run-badge ${latest.conclusion === 'success' ? 'badge-success' : latest.status === 'in_progress' ? 'badge-running' : 'badge-fail'}`;
+      badgeEl.textContent = latest.conclusion === 'success' ? '성공' : latest.status === 'in_progress' ? '실행중' : '실패';
+    }
     document.getElementById('statusText').textContent =
       document.getElementById('enabledToggle').checked ? '활성화' : '비활성화';
 
