@@ -1,0 +1,7 @@
+{
+  "recipient_email": "sw78.song@samsung.com",
+  "max_emails": 20,
+  "search_days": 1,
+  "enabled": true,
+  "schedule_label": "매일 오전 9시 KST"
+}
