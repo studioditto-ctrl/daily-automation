@@ -21,6 +21,7 @@ from email.mime.text import MIMEText
 from email.header import decode_header
 from datetime import datetime, timedelta, timezone
 
+import json
 import anthropic
 
 # ── 상수 ────────────────────────────────────────────────────────────────────
@@ -28,7 +29,18 @@ KST = timezone(timedelta(hours=9))
 IMAP_HOST = "imap.gmail.com"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465
-MAX_EMAILS = 20
+
+
+def load_config() -> dict:
+    """config.json에서 설정 로드 (없으면 기본값)."""
+    try:
+        with open("config.json", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+MAX_EMAILS = 20  # fallback (config에서 덮어씀)
 
 
 # ── Gmail IMAP ───────────────────────────────────────────────────────────────
@@ -237,20 +249,30 @@ def send_email(address: str, app_password: str, recipient: str, subject: str, ht
 
 # ── main ─────────────────────────────────────────────────────────────────────
 def main():
+    cfg = load_config()
+
+    # enabled 체크 — False면 조용히 종료
+    if cfg.get("enabled") is False:
+        print("서비스 비활성화 상태 (config.enabled=false). 건너뜀.")
+        return
+
     address = os.environ["GMAIL_ADDRESS"]
     app_password = os.environ["GMAIL_APP_PASSWORD"]
-    recipient = os.environ.get("RECIPIENT_EMAIL", address)
+    # 우선순위: config.json > RECIPIENT_EMAIL secret > 발신 주소
+    recipient = cfg.get("recipient_email") or os.environ.get("RECIPIENT_EMAIL", address)
+    max_emails = int(cfg.get("max_emails", MAX_EMAILS))
 
     now_kst = datetime.now(KST)
     today = now_kst.strftime("%Y년 %m월 %d일")
     subject = f"📋 뉴스레터 요약 | {now_kst.strftime('%Y.%m.%d')}"
 
-    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작")
+    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작 | 수신: {recipient} | 최대: {max_emails}건")
 
     # 1. Gmail 연결 및 메일 검색
     print("Gmail 연결 중...")
     mail = connect_imap(address, app_password)
     ids = search_newsletters(mail)
+    ids = ids[:max_emails]
     print(f"메일 {len(ids)}건 발견")
 
     if not ids:
