@@ -1,5 +1,5 @@
 {
-  "recipient_email": "sw78.song@samsung.com",
+  "recipient_emails": ["sw78.song@samsung.com"],
   "max_emails": 20,
   "search_days": 1,
   "enabled": true,

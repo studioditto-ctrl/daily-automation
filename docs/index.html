@@ -204,6 +204,29 @@
     font-size: 15px; font-weight: 800; cursor: pointer;
   }
 
+  /* Recipient List */
+  .recipient-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .recipient-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #0f0f11; border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px;
+  }
+  .recipient-item.primary { border-color: rgba(99,102,241,0.4); }
+  .recipient-email { font-size: 13px; font-weight: 600; flex: 1; word-break: break-all; }
+  .recipient-badge {
+    font-size: 10px; padding: 2px 7px; border-radius: 20px;
+    background: rgba(99,102,241,0.15); color: var(--accent2);
+    margin-left: 8px; flex-shrink: 0;
+  }
+  .remove-btn {
+    width: 28px; height: 28px; background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.25); color: var(--red);
+    border-radius: 8px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-left: 8px; transition: all 0.2s;
+  }
+  .remove-btn:active { background: rgba(239,68,68,0.25); }
+
   /* Number Stepper */
   .stepper { display: flex; align-items: center; gap: 0; }
   .step-btn {
@@ -303,14 +326,19 @@
       <div class="setting-value">매일 오전 9:00</div>
     </div>
 
-    <div class="setting-row" style="flex-direction:column;align-items:flex-start;">
-      <div style="margin-bottom:10px;">
+    <div class="setting-row" style="flex-direction:column;align-items:flex-start;border-bottom:none;padding-bottom:0;">
+      <div style="margin-bottom:12px;width:100%;">
         <div class="setting-label">수신자 이메일</div>
-        <div class="setting-desc">요약 리포트 수신 주소</div>
+        <div class="setting-desc">요약 리포트를 수신할 이메일 목록</div>
       </div>
-      <div class="input-row" style="width:100%;">
-        <input class="text-input" id="recipientInput" type="email" placeholder="your@email.com" />
-        <button class="save-btn" onclick="saveRecipient()">저장</button>
+      <!-- 수신자 목록 -->
+      <div class="recipient-list" id="recipientList">
+        <div style="text-align:center;padding:12px;color:var(--sub);font-size:12px;">불러오는 중…</div>
+      </div>
+      <!-- 추가 입력 -->
+      <div class="input-row" style="width:100%;margin-top:10px;">
+        <input class="text-input" id="recipientInput" type="email" placeholder="추가할 이메일 입력" />
+        <button class="save-btn" onclick="addRecipient()">추가</button>
       </div>
     </div>
 
@@ -422,7 +450,10 @@ async function loadConfig() {
     config = JSON.parse(text);
     config._sha = data.sha;
 
-    document.getElementById('recipientInput').value = config.recipient_email || '';
+    // 수신자 목록 (배열 우선, 없으면 단수)
+    const emails = config.recipient_emails
+      || (config.recipient_email ? [config.recipient_email] : []);
+    renderRecipients(emails);
     document.getElementById('maxEmails').value = config.max_emails || 20;
     document.getElementById('enabledToggle').checked = config.enabled !== false;
 
@@ -482,11 +513,48 @@ function saveEnabled() {
   });
 }
 
-function saveRecipient() {
-  const email = document.getElementById('recipientInput').value.trim();
+function renderRecipients(list) {
+  const el = document.getElementById('recipientList');
+  if (!list || list.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:12px;color:var(--sub);font-size:12px;">수신자가 없습니다</div>';
+    return;
+  }
+  el.innerHTML = list.map((email, i) => `
+    <div class="recipient-item ${i === 0 ? 'primary' : ''}">
+      <span class="recipient-email">${email}</span>
+      ${i === 0 ? '<span class="recipient-badge">주 수신자</span>' : ''}
+      <button class="remove-btn" onclick="removeRecipient(${i})" title="삭제">✕</button>
+    </div>
+  `).join('');
+}
+
+function addRecipient() {
+  const input = document.getElementById('recipientInput');
+  const email = input.value.trim();
   if (!email || !email.includes('@')) return showToast('올바른 이메일을 입력하세요', 'error');
-  saveConfig({ recipient_email: email }).then(ok => {
-    if (ok) showToast('수신자 이메일 저장 완료 ✓', 'success');
+
+  const list = config.recipient_emails || [];
+  if (list.includes(email)) return showToast('이미 등록된 이메일입니다', 'error');
+
+  const newList = [...list, email];
+  saveConfig({ recipient_emails: newList }).then(ok => {
+    if (ok) {
+      input.value = '';
+      renderRecipients(newList);
+      showToast(`${email} 추가됨 ✓`, 'success');
+    }
+  });
+}
+
+function removeRecipient(index) {
+  const list = [...(config.recipient_emails || [])];
+  if (list.length <= 1) return showToast('최소 1명의 수신자가 필요합니다', 'error');
+  const removed = list.splice(index, 1)[0];
+  saveConfig({ recipient_emails: list }).then(ok => {
+    if (ok) {
+      renderRecipients(list);
+      showToast(`${removed} 삭제됨`, 'info');
+    }
   });
 }
 

@@ -237,14 +237,15 @@ def generate_html(emails: list[dict], today: str) -> str:
 # ── Gmail SMTP 발송 ──────────────────────────────────────────────────────────
 def send_email(address: str, app_password: str, recipient: str, subject: str, html: str):
     msg = MIMEMultipart("alternative")
+    recipients = [recipient] if isinstance(recipient, str) else recipient
     msg["Subject"] = subject
     msg["From"] = address
-    msg["To"] = recipient
+    msg["To"] = ", ".join(recipients)
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as s:
         s.login(address, app_password)
-        s.sendmail(address, recipient, msg.as_string())
+        s.sendmail(address, recipients, msg.as_string())
 
 
 # ── main ─────────────────────────────────────────────────────────────────────
@@ -258,15 +259,19 @@ def main():
 
     address = os.environ["GMAIL_ADDRESS"]
     app_password = os.environ["GMAIL_APP_PASSWORD"]
-    # 우선순위: config.json > RECIPIENT_EMAIL secret > 발신 주소
-    recipient = cfg.get("recipient_email") or os.environ.get("RECIPIENT_EMAIL", address)
+    # 수신자 목록: config.recipient_emails(배열) 우선, 없으면 recipient_email(단수) or secret
+    recipients = (
+        cfg.get("recipient_emails")
+        or ([cfg["recipient_email"]] if cfg.get("recipient_email") else None)
+        or [os.environ.get("RECIPIENT_EMAIL", address)]
+    )
     max_emails = int(cfg.get("max_emails", MAX_EMAILS))
 
     now_kst = datetime.now(KST)
     today = now_kst.strftime("%Y년 %m월 %d일")
     subject = f"📋 뉴스레터 요약 | {now_kst.strftime('%Y.%m.%d')}"
 
-    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작 | 수신: {recipient} | 최대: {max_emails}건")
+    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작 | 수신: {recipients} | 최대: {max_emails}건")
 
     # 1. Gmail 연결 및 메일 검색
     print("Gmail 연결 중...")
@@ -280,7 +285,7 @@ def main():
         <h2>📋 뉴스레터 요약 | {today}</h2>
         <p style="color:#999;">오늘 수신된 뉴스레터가 없습니다.</p>
         </body>"""
-        send_email(address, app_password, recipient, subject, html)
+        send_email(address, app_password, recipients, subject, html)
         print("빈 리포트 발송 완료")
         return
 
@@ -299,8 +304,8 @@ def main():
         html = f"<html><body>{html}</body></html>"
 
     # 4. 이메일 발송
-    print(f"발송 중 → {recipient}")
-    send_email(address, app_password, recipient, subject, html)
+    print(f"발송 중 → {recipients}")
+    send_email(address, app_password, recipients, subject, html)
     print("완료!")
 
 
