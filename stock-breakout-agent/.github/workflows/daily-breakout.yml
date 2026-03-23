@@ -1,0 +1,56 @@
+name: 돌파매매 후보군 일일 분석
+
+on:
+  schedule:
+    # 06:30 UTC = 15:30 KST, 평일만 실행
+    - cron: '30 6 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      debug:
+        description: '디버그 모드 (상세 로그)'
+        required: false
+        default: 'false'
+
+jobs:
+  run-analysis:
+    name: RS 수집 + 차트 분석
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 3.11 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: stock-breakout-agent/requirements.txt
+
+      - name: 의존성 설치
+        working-directory: stock-breakout-agent
+        run: |
+          pip install -r requirements.txt
+          playwright install chromium
+
+      - name: 돌파매매 분석 실행
+        working-directory: stock-breakout-agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          SITE_URL: ${{ secrets.SITE_URL }}
+          SITE_USERNAME: ${{ secrets.SITE_USERNAME }}
+          SITE_PASSWORD: ${{ secrets.SITE_PASSWORD }}
+          RS_THRESHOLD: ${{ vars.RS_THRESHOLD || '80' }}
+          MAX_FIRST_CANDIDATES: ${{ vars.MAX_FIRST_CANDIDATES || '50' }}
+          MAX_SECOND_CANDIDATES: ${{ vars.MAX_SECOND_CANDIDATES || '20' }}
+          LOOKBACK_DAYS: ${{ vars.LOOKBACK_DAYS || '120' }}
+        run: python -m agents.orchestrator
+
+      - name: 분석 결과 업로드 (아티팩트)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: breakout-report-${{ github.run_id }}
+          path: stock-breakout-agent/storage/reports/
+          retention-days: 30
