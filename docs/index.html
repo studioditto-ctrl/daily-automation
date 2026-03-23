@@ -254,19 +254,22 @@
 <!-- PAT Modal -->
 <div class="modal-bg" id="patModal">
   <div class="modal">
-    <h2>🔑 GitHub 연결</h2>
-    <p>어드민 페이지를 사용하려면 GitHub Personal Access Token이 필요합니다.</p>
-    <div class="modal-steps">
-      <ol style="padding-left:16px;">
-        <li><a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a> 접속</li>
-        <li>Note: <b>newsletter-admin</b></li>
-        <li>Expiration: <b>No expiration</b></li>
-        <li>Scopes: <b>repo</b> 체크</li>
-        <li>Generate token → 복사</li>
-      </ol>
+    <h2>🔑 최초 1회 설정 필요</h2>
+    <p>아래 전용 링크를 열면 자동으로 연결됩니다.<br>이후 북마크에 저장하면 매번 자동 로그인.</p>
+
+    <div id="setupLinkBox" style="background:#0f0f11;border:1px solid #3730a3;border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;">
+      <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">전용 접속 링크 (북마크 저장 권장)</div>
+      <div id="setupLink" style="font-size:11px;color:#818cf8;word-break:break-all;line-height:1.6;cursor:pointer;" onclick="copySetupLink()">
+        로딩 중…
+      </div>
+      <button onclick="copySetupLink()" style="margin-top:10px;padding:6px 14px;background:rgba(99,102,241,0.2);color:#818cf8;border:1px solid rgba(99,102,241,0.4);border-radius:8px;font-size:12px;cursor:pointer;font-weight:700;">
+        📋 링크 복사
+      </button>
     </div>
+
+    <div style="text-align:center;font-size:11px;color:var(--sub);margin-bottom:16px;">— 또는 직접 입력 —</div>
     <input class="modal-input" id="patInput" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
-    <button class="modal-confirm" onclick="savePat()">연결하기</button>
+    <button class="modal-confirm" onclick="savePat()">직접 연결하기</button>
   </div>
 </div>
 
@@ -379,9 +382,13 @@
       <div class="setting-label">발신 계정</div>
       <div class="setting-value">studioditto@gmail.com</div>
     </div>
+    <div class="setting-row">
+      <div class="setting-label">전용 접속 링크</div>
+      <button onclick="copyMyLink()" style="font-size:11px;padding:5px 10px;background:rgba(99,102,241,0.1);color:var(--accent2);border:1px solid rgba(99,102,241,0.3);border-radius:8px;cursor:pointer;">📋 복사</button>
+    </div>
     <div class="setting-row" style="border-bottom:none;">
-      <div class="setting-label">토큰 초기화</div>
-      <button onclick="clearPat()" style="font-size:11px;padding:5px 10px;background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:8px;cursor:pointer;">로그아웃</button>
+      <div class="setting-label">로그아웃</div>
+      <button onclick="clearPat()" style="font-size:11px;padding:5px 10px;background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:8px;cursor:pointer;">초기화</button>
     </div>
   </div>
 
@@ -394,6 +401,18 @@ const OWNER = 'studioditto-ctrl';
 const REPO = 'daily-automation';
 const WORKFLOW = 'daily-digest.yml';
 const API = 'https://api.github.com';
+
+// ── URL 토큰 자동 저장 (북마크 방식) ─────────────────────────────
+(function() {
+  const p = new URLSearchParams(window.location.search);
+  const t = p.get('token');
+  if (t && t.startsWith('gh')) {
+    localStorage.setItem('gh_pat', t);
+    // URL에서 token 파라미터 제거 (히스토리에 남지 않게)
+    const clean = window.location.pathname;
+    window.history.replaceState({}, '', clean);
+  }
+})();
 
 let pat = localStorage.getItem('gh_pat') || '';
 let config = {};
@@ -663,6 +682,34 @@ function formatDate(iso) {
   const m = String(kst.getUTCMinutes()).padStart(2, '0');
   return `${M}월 ${D}일 ${h}:${m}`;
 }
+
+// ── Setup Link ───────────────────────────────────────────────────
+const BASE_URL = 'https://studioditto-ctrl.github.io/daily-automation/';
+
+function getSetupLink() {
+  return pat ? `${BASE_URL}?token=${pat}` : BASE_URL;
+}
+
+// 모달에 setup 링크 표시
+function renderSetupLink() {
+  const link = getSetupLink();
+  const el = document.getElementById('setupLink');
+  if (el) el.textContent = link;
+}
+
+function copySetupLink() {
+  const link = pat
+    ? getSetupLink()
+    : `${BASE_URL}?token=(토큰을 먼저 입력하세요)`;
+  navigator.clipboard.writeText(link).then(() => showToast('링크 복사됨 ✓', 'success'));
+}
+
+function copyMyLink() {
+  if (!pat) return showToast('로그인 상태가 아닙니다', 'error');
+  navigator.clipboard.writeText(getSetupLink()).then(() => showToast('전용 링크 복사됨 ✓ 북마크에 저장하세요', 'success'));
+}
+
+window.addEventListener('DOMContentLoaded', renderSetupLink);
 
 function showToast(msg, type = 'info') {
   const t = document.getElementById('toast');
