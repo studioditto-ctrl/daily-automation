@@ -224,6 +224,7 @@
     transition: all 0.2s; margin-bottom: 10px;
   }
   .add-set-btn:active { background: rgba(99,102,241,0.15); }
+  .add-set-form.hidden { display: none !important; }
 
   /* Divider */
   .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
@@ -349,19 +350,19 @@
     <div id="emailSetsContainer"></div>
 
     <!-- + SET 추가 버튼 -->
-    <button class="add-set-btn" id="addSetBtn" onclick="toggleAddSetForm()">
+    <button type="button" class="add-set-btn" id="addSetBtn" onclick="toggleAddSetForm()">
       + SET 추가
     </button>
 
     <!-- SET 추가 폼 (기본 숨김) -->
-    <div class="add-set-form" id="addSetForm" style="display:none;">
+    <div class="add-set-form hidden" id="addSetForm">
       <div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:2px;">새 SET 등록</div>
       <input class="text-input" id="newGmailAddr" type="email" placeholder="분석할 Gmail 주소" />
       <input class="text-input" id="newGmailPass" type="password" placeholder="앱 비밀번호 (16자리)" />
       <input class="text-input" id="newRecipient" type="email" placeholder="수신자 이메일" />
       <div class="input-row">
-        <button class="btn secondary" style="flex:1;" onclick="toggleAddSetForm()">취소</button>
-        <button class="btn" style="flex:1;" onclick="addEmailSet()">SET 추가</button>
+        <button type="button" class="btn secondary" style="flex:1;" onclick="toggleAddSetForm()">취소</button>
+        <button type="button" class="btn" style="flex:1;" onclick="addEmailSet()">SET 추가</button>
       </div>
     </div>
   </div>
@@ -582,10 +583,11 @@ function renderEmailSets(sets) {
 function toggleAddSetForm() {
   const form = document.getElementById('addSetForm');
   const btn  = document.getElementById('addSetBtn');
-  const show = form.style.display === 'none';
-  form.style.display = show ? 'flex' : 'none';
-  btn.style.display  = show ? 'none' : 'flex';
-  if (show) document.getElementById('newGmailAddr').focus();
+  if (!form || !btn) return;
+  const isHidden = form.classList.contains('hidden');
+  form.classList.toggle('hidden', !isHidden);
+  btn.style.display = isHidden ? 'none' : 'flex';
+  if (isHidden) setTimeout(() => document.getElementById('newGmailAddr').focus(), 50);
 }
 
 async function addEmailSet() {
