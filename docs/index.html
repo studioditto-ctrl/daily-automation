@@ -251,28 +251,6 @@
 </head>
 <body>
 
-<!-- PAT Modal -->
-<div class="modal-bg" id="patModal">
-  <div class="modal">
-    <h2>🔑 최초 1회 설정 필요</h2>
-    <p>아래 전용 링크를 열면 자동으로 연결됩니다.<br>이후 북마크에 저장하면 매번 자동 로그인.</p>
-
-    <div id="setupLinkBox" style="background:#0f0f11;border:1px solid #3730a3;border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;">
-      <div style="font-size:11px;color:var(--sub);margin-bottom:8px;">전용 접속 링크 (북마크 저장 권장)</div>
-      <div id="setupLink" style="font-size:11px;color:#818cf8;word-break:break-all;line-height:1.6;cursor:pointer;" onclick="copySetupLink()">
-        로딩 중…
-      </div>
-      <button onclick="copySetupLink()" style="margin-top:10px;padding:6px 14px;background:rgba(99,102,241,0.2);color:#818cf8;border:1px solid rgba(99,102,241,0.4);border-radius:8px;font-size:12px;cursor:pointer;font-weight:700;">
-        📋 링크 복사
-      </button>
-    </div>
-
-    <div style="text-align:center;font-size:11px;color:var(--sub);margin-bottom:16px;">— 또는 직접 입력 —</div>
-    <input class="modal-input" id="patInput" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
-    <button class="modal-confirm" onclick="savePat()">직접 연결하기</button>
-  </div>
-</div>
-
 <!-- Header -->
 <div class="header">
   <div class="header-top">
@@ -382,13 +360,9 @@
       <div class="setting-label">발신 계정</div>
       <div class="setting-value">studioditto@gmail.com</div>
     </div>
-    <div class="setting-row">
-      <div class="setting-label">전용 접속 링크</div>
-      <button onclick="copyMyLink()" style="font-size:11px;padding:5px 10px;background:rgba(99,102,241,0.1);color:var(--accent2);border:1px solid rgba(99,102,241,0.3);border-radius:8px;cursor:pointer;">📋 복사</button>
-    </div>
     <div class="setting-row" style="border-bottom:none;">
-      <div class="setting-label">로그아웃</div>
-      <button onclick="clearPat()" style="font-size:11px;padding:5px 10px;background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);border-radius:8px;cursor:pointer;">초기화</button>
+      <div class="setting-label">어드민 URL</div>
+      <button onclick="navigator.clipboard.writeText(location.href).then(()=>showToast('URL 복사됨 ✓','success'))" style="font-size:11px;padding:5px 10px;background:rgba(99,102,241,0.1);color:var(--accent2);border:1px solid rgba(99,102,241,0.3);border-radius:8px;cursor:pointer;">📋 복사</button>
     </div>
   </div>
 
@@ -402,15 +376,12 @@ const REPO = 'daily-automation';
 const WORKFLOW = 'daily-digest.yml';
 const API = 'https://api.github.com';
 
-// ── URL 토큰 자동 저장 (북마크 방식) ─────────────────────────────
+// ── 토큰 자동 저장 (URL 파라미터 → localStorage) ─────────────────
 (function() {
-  const p = new URLSearchParams(window.location.search);
-  const t = p.get('token');
+  const t = new URLSearchParams(window.location.search).get('token');
   if (t && t.startsWith('gh')) {
     localStorage.setItem('gh_pat', t);
-    // URL에서 token 파라미터 제거 (히스토리에 남지 않게)
-    const clean = window.location.pathname;
-    window.history.replaceState({}, '', clean);
+    window.history.replaceState({}, '', window.location.pathname);
   }
 })();
 
@@ -420,30 +391,14 @@ let config = {};
 // ── Init ─────────────────────────────────────────────────────────
 window.onload = () => {
   if (!pat) {
-    document.getElementById('patModal').style.display = 'flex';
-  } else {
-    document.getElementById('patModal').style.display = 'none';
-    init();
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#0f0f11;color:#9ca3af;font-family:sans-serif;text-align:center;padding:20px;"><div><div style="font-size:48px;margin-bottom:16px;">🔒</div><div style="font-size:16px;color:#f1f1f3;margin-bottom:8px;">접근 권한이 없습니다</div><div style="font-size:13px;">전용 URL로 접속해 주세요</div></div></div>';
+    return;
   }
+  init();
 };
 
 async function init() {
   await Promise.all([loadConfig(), loadRuns()]);
-}
-
-// ── PAT ──────────────────────────────────────────────────────────
-function savePat() {
-  const val = document.getElementById('patInput').value.trim();
-  if (!val || !val.startsWith('gh')) return showToast('유효하지 않은 토큰입니다', 'error');
-  pat = val;
-  localStorage.setItem('gh_pat', pat);
-  document.getElementById('patModal').style.display = 'none';
-  init();
-}
-function clearPat() {
-  localStorage.removeItem('gh_pat');
-  pat = '';
-  location.reload();
 }
 
 // ── GitHub API ───────────────────────────────────────────────────
@@ -683,33 +638,6 @@ function formatDate(iso) {
   return `${M}월 ${D}일 ${h}:${m}`;
 }
 
-// ── Setup Link ───────────────────────────────────────────────────
-const BASE_URL = 'https://studioditto-ctrl.github.io/daily-automation/';
-
-function getSetupLink() {
-  return pat ? `${BASE_URL}?token=${pat}` : BASE_URL;
-}
-
-// 모달에 setup 링크 표시
-function renderSetupLink() {
-  const link = getSetupLink();
-  const el = document.getElementById('setupLink');
-  if (el) el.textContent = link;
-}
-
-function copySetupLink() {
-  const link = pat
-    ? getSetupLink()
-    : `${BASE_URL}?token=(토큰을 먼저 입력하세요)`;
-  navigator.clipboard.writeText(link).then(() => showToast('링크 복사됨 ✓', 'success'));
-}
-
-function copyMyLink() {
-  if (!pat) return showToast('로그인 상태가 아닙니다', 'error');
-  navigator.clipboard.writeText(getSetupLink()).then(() => showToast('전용 링크 복사됨 ✓ 북마크에 저장하세요', 'success'));
-}
-
-window.addEventListener('DOMContentLoaded', renderSetupLink);
 
 function showToast(msg, type = 'info') {
   const t = document.getElementById('toast');
