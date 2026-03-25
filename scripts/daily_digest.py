@@ -258,75 +258,54 @@ def main():
         print("서비스 비활성화 상태 (config.enabled=false). 건너뜀.")
         return
 
-    # 수신자 목록
-    recipients = (
-        cfg.get("recipient_emails")
-        or ([cfg["recipient_email"]] if cfg.get("recipient_email") else None)
-        or [os.environ.get("RECIPIENT_EMAIL", os.environ.get("GMAIL_ADDRESS", ""))]
-    )
     max_emails = int(cfg.get("max_emails", MAX_EMAILS))
-
-    # 분석 계정 목록: config.gmail_accounts 우선, 없으면 env var fallback
-    raw_accounts = cfg.get("gmail_accounts") or []
-    accounts = [a for a in raw_accounts if a.get("address") and a.get("app_password")]
-    if not accounts:
-        accounts = [{"address": os.environ["GMAIL_ADDRESS"],
-                     "app_password": os.environ["GMAIL_APP_PASSWORD"]}]
-
     now_kst = datetime.now(KST)
-    today = now_kst.strftime("%Y년 %m월 %d일")
+    today   = now_kst.strftime("%Y년 %m월 %d일")
     subject = f"📋 뉴스레터 요약 | {now_kst.strftime('%Y.%m.%d')}"
 
-    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작 | 계정: {len(accounts)}개 | 수신: {recipients}")
+    # email_sets 로드 (없으면 env var fallback)
+    raw_sets = cfg.get("email_sets") or []
+    sets = [s for s in raw_sets if s.get("gmail_address") and s.get("app_password") and s.get("recipients")]
+    if not sets:
+        sets = [{
+            "gmail_address": os.environ["GMAIL_ADDRESS"],
+            "app_password":  os.environ["GMAIL_APP_PASSWORD"],
+            "recipients":    [os.environ.get("RECIPIENT_EMAIL", os.environ["GMAIL_ADDRESS"])],
+        }]
 
-    # 1. 모든 계정에서 메일 수집
-    all_emails: list[dict] = []
-    for acc in accounts:
+    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작 | SET: {len(sets)}개")
+
+    # SET별 독립 실행: 읽기 → 요약 → 발송
+    for i, s in enumerate(sets):
+        addr       = s["gmail_address"]
+        app_pwd    = s["app_password"]
+        recipients = s["recipients"]
+        print(f"\n── SET {i+1}: {addr} → {recipients}")
+
         try:
-            print(f"  [{acc['address']}] 연결 중...")
-            mail = connect_imap(acc["address"], acc["app_password"])
-            ids = search_newsletters(mail, max_results=max_emails)
-            fetched = fetch_emails(mail, ids)
+            mail    = connect_imap(addr, app_pwd)
+            ids     = search_newsletters(mail, max_results=max_emails)
+            emails  = fetch_emails(mail, ids)
             mail.logout()
-            print(f"  [{acc['address']}] {len(fetched)}건 수집")
-            all_emails.extend(fetched)
+            print(f"   {len(emails)}건 수집")
         except Exception as e:
-            print(f"  [{acc['address']}] WARN: {e}")
+            print(f"   WARN Gmail 연결 실패: {e}")
+            continue
 
-    # 중복 제거 (제목 기준)
-    seen: set[str] = set()
-    emails: list[dict] = []
-    for e in all_emails:
-        if e["subject"] not in seen:
-            seen.add(e["subject"])
-            emails.append(e)
-    emails = emails[:max_emails]
-    print(f"중복 제거 후 {len(emails)}건")
+        if not emails:
+            html = f"""<body style="font-family:Arial;padding:40px;color:#555;text-align:center;">
+            <h2>📋 뉴스레터 요약 | {today}</h2>
+            <p style="color:#999;">오늘 수신된 뉴스레터가 없습니다.</p></body>"""
+        else:
+            print("   Claude 요약 생성 중...")
+            html = generate_html(emails, today)
+            if "<!DOCTYPE" not in html and "<html" not in html:
+                html = f"<html><body>{html}</body></html>"
 
-    send_address = accounts[0]["address"]
-    send_password = accounts[0]["app_password"]
+        send_email(addr, app_pwd, recipients, subject, html)
+        print(f"   발송 완료 → {recipients}")
 
-    if not emails:
-        html = f"""<body style="font-family:Arial;padding:40px;color:#555;text-align:center;">
-        <h2>📋 뉴스레터 요약 | {today}</h2>
-        <p style="color:#999;">오늘 수신된 뉴스레터가 없습니다.</p>
-        </body>"""
-        send_email(send_address, send_password, recipients, subject, html)
-        print("빈 리포트 발송 완료")
-        return
-
-    # 3. Claude로 HTML 생성
-    print("Claude로 요약 생성 중...")
-    html = generate_html(emails, today)
-
-    # HTML 태그 감지 안 되면 기본 래핑
-    if "<!DOCTYPE" not in html and "<html" not in html:
-        html = f"<html><body>{html}</body></html>"
-
-    # 4. 이메일 발송
-    print(f"발송 중 → {recipients}")
-    send_email(send_address, send_password, recipients, subject, html)
-    print("완료!")
+    print("\n전체 완료!")
 
 
 if __name__ == "__main__":

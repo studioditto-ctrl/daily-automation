@@ -1,10 +1,12 @@
 {
-  "recipient_emails": ["sw78.song@samsung.com"],
+  "email_sets": [
+    {
+      "gmail_address": "studioditto@gmail.com",
+      "app_password": "",
+      "recipients": ["sw78.song@samsung.com"]
+    }
+  ],
   "max_emails": 20,
-  "search_days": 1,
   "enabled": true,
-  "schedule_times": ["09:00"],
-  "gmail_accounts": [
-    {"address": "studioditto@gmail.com", "app_password": ""}
-  ]
+  "schedule_times": ["09:00"]
 }
