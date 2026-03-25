@@ -561,27 +561,26 @@ async function loadRuns() {
 
     // Last run card
     const latest = runs[0];
-    const lIcon = latest.conclusion === 'success' ? '✅' : latest.status === 'in_progress' ? '🔄' : '❌';
+    const lActive = latest.status === 'in_progress' || latest.status === 'queued';
+    const lIcon = latest.conclusion === 'success' ? '✅' : lActive ? '🔄' : '❌';
     const lTime = formatDate(latest.created_at);
-    const lBadge = latest.conclusion === 'success' ? '<span class="last-run-badge badge-success">성공</span>' :
-                   latest.status === 'in_progress' ? '<span class="last-run-badge badge-running">실행중</span>' :
-                   '<span class="last-run-badge badge-fail">실패</span>';
 
     document.getElementById('lastRunIcon').textContent = lIcon;
     document.getElementById('lastRunTime').textContent = lTime;
     const badgeEl = document.getElementById('lastRunBadge');
     if (badgeEl) {
-      badgeEl.className = `last-run-badge ${latest.conclusion === 'success' ? 'badge-success' : latest.status === 'in_progress' ? 'badge-running' : 'badge-fail'}`;
-      badgeEl.textContent = latest.conclusion === 'success' ? '성공' : latest.status === 'in_progress' ? '실행중' : '실패';
+      badgeEl.className = `last-run-badge ${latest.conclusion === 'success' ? 'badge-success' : lActive ? 'badge-running' : 'badge-fail'}`;
+      badgeEl.textContent = latest.conclusion === 'success' ? '성공' : latest.status === 'queued' ? '대기중' : lActive ? '실행중' : '실패';
     }
     document.getElementById('statusText').textContent =
       document.getElementById('enabledToggle').checked ? '활성화' : '비활성화';
 
     // Log list
     document.getElementById('logList').innerHTML = runs.map(run => {
-      const icon = run.conclusion === 'success' ? '✅' : run.status === 'in_progress' ? '🔄' : '❌';
-      const statusClass = run.conclusion === 'success' ? 'badge-success' : run.status === 'in_progress' ? 'badge-running' : 'badge-fail';
-      const statusLabel = run.conclusion === 'success' ? '성공' : run.status === 'in_progress' ? '실행중' : (run.conclusion || '실패');
+      const isActive = run.status === 'in_progress' || run.status === 'queued';
+      const icon = run.conclusion === 'success' ? '✅' : isActive ? '🔄' : '❌';
+      const statusClass = run.conclusion === 'success' ? 'badge-success' : isActive ? 'badge-running' : 'badge-fail';
+      const statusLabel = run.conclusion === 'success' ? '성공' : run.status === 'queued' ? '대기중' : isActive ? '실행중' : (run.conclusion || '실패');
       const dur = run.updated_at && run.created_at ?
         Math.round((new Date(run.updated_at) - new Date(run.created_at)) / 1000) + 's' : '-';
       const trigger = run.event === 'schedule' ? '⏰ 자동' : '▶ 수동';
