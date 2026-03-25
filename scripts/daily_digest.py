@@ -228,7 +228,11 @@ def generate_html(emails: list[dict], today: str) -> str:
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
-    return msg.content[0].text
+    html = msg.content[0].text.strip()
+    # 마크다운 코드블록 제거 (```html ... ``` 또는 ``` ... ```)
+    html = re.sub(r"^```[a-zA-Z]*\n?", "", html)
+    html = re.sub(r"\n?```$", "", html)
+    return html.strip()
 
 
 # ── Gmail SMTP 발송 ──────────────────────────────────────────────────────────
