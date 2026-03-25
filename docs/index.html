@@ -413,6 +413,7 @@ async function ghFetch(path, opts = {}) {
     },
   });
   if (!res.ok) throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+  if (res.status === 204 || res.headers.get('content-length') === '0') return null;
   return res.json();
 }
 
