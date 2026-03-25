@@ -3,5 +3,8 @@
   "max_emails": 20,
   "search_days": 1,
   "enabled": true,
-  "schedule_label": "매일 오전 9시 KST"
+  "schedule_times": ["09:00"],
+  "gmail_accounts": [
+    {"address": "studioditto@gmail.com", "app_password": ""}
+  ]
 }

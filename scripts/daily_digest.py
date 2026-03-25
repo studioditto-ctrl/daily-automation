@@ -258,42 +258,62 @@ def main():
         print("서비스 비활성화 상태 (config.enabled=false). 건너뜀.")
         return
 
-    address = os.environ["GMAIL_ADDRESS"]
-    app_password = os.environ["GMAIL_APP_PASSWORD"]
-    # 수신자 목록: config.recipient_emails(배열) 우선, 없으면 recipient_email(단수) or secret
+    # 수신자 목록
     recipients = (
         cfg.get("recipient_emails")
         or ([cfg["recipient_email"]] if cfg.get("recipient_email") else None)
-        or [os.environ.get("RECIPIENT_EMAIL", address)]
+        or [os.environ.get("RECIPIENT_EMAIL", os.environ.get("GMAIL_ADDRESS", ""))]
     )
     max_emails = int(cfg.get("max_emails", MAX_EMAILS))
+
+    # 분석 계정 목록: config.gmail_accounts 우선, 없으면 env var fallback
+    raw_accounts = cfg.get("gmail_accounts") or []
+    accounts = [a for a in raw_accounts if a.get("address") and a.get("app_password")]
+    if not accounts:
+        accounts = [{"address": os.environ["GMAIL_ADDRESS"],
+                     "app_password": os.environ["GMAIL_APP_PASSWORD"]}]
 
     now_kst = datetime.now(KST)
     today = now_kst.strftime("%Y년 %m월 %d일")
     subject = f"📋 뉴스레터 요약 | {now_kst.strftime('%Y.%m.%d')}"
 
-    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작 | 수신: {recipients} | 최대: {max_emails}건")
+    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작 | 계정: {len(accounts)}개 | 수신: {recipients}")
 
-    # 1. Gmail 연결 및 메일 검색
-    print("Gmail 연결 중...")
-    mail = connect_imap(address, app_password)
-    ids = search_newsletters(mail, max_results=max_emails)
-    print(f"메일 {len(ids)}건 발견")
+    # 1. 모든 계정에서 메일 수집
+    all_emails: list[dict] = []
+    for acc in accounts:
+        try:
+            print(f"  [{acc['address']}] 연결 중...")
+            mail = connect_imap(acc["address"], acc["app_password"])
+            ids = search_newsletters(mail, max_results=max_emails)
+            fetched = fetch_emails(mail, ids)
+            mail.logout()
+            print(f"  [{acc['address']}] {len(fetched)}건 수집")
+            all_emails.extend(fetched)
+        except Exception as e:
+            print(f"  [{acc['address']}] WARN: {e}")
 
-    if not ids:
+    # 중복 제거 (제목 기준)
+    seen: set[str] = set()
+    emails: list[dict] = []
+    for e in all_emails:
+        if e["subject"] not in seen:
+            seen.add(e["subject"])
+            emails.append(e)
+    emails = emails[:max_emails]
+    print(f"중복 제거 후 {len(emails)}건")
+
+    send_address = accounts[0]["address"]
+    send_password = accounts[0]["app_password"]
+
+    if not emails:
         html = f"""<body style="font-family:Arial;padding:40px;color:#555;text-align:center;">
         <h2>📋 뉴스레터 요약 | {today}</h2>
         <p style="color:#999;">오늘 수신된 뉴스레터가 없습니다.</p>
         </body>"""
-        send_email(address, app_password, recipients, subject, html)
+        send_email(send_address, send_password, recipients, subject, html)
         print("빈 리포트 발송 완료")
         return
-
-    # 2. 메일 본문 읽기
-    print("메일 내용 읽는 중...")
-    emails = fetch_emails(mail, ids)
-    mail.logout()
-    print(f"{len(emails)}건 처리 완료")
 
     # 3. Claude로 HTML 생성
     print("Claude로 요약 생성 중...")
@@ -305,7 +325,7 @@ def main():
 
     # 4. 이메일 발송
     print(f"발송 중 → {recipients}")
-    send_email(address, app_password, recipients, subject, html)
+    send_email(send_address, send_password, recipients, subject, html)
     print("완료!")
 
 

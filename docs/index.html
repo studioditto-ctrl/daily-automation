@@ -299,24 +299,30 @@
       </label>
     </div>
 
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">발송 시간</div>
-        <div class="setting-desc">KST 기준</div>
+    <!-- 발송 시간 -->
+    <div class="setting-row" style="flex-direction:column;align-items:flex-start;">
+      <div style="margin-bottom:12px;width:100%;">
+        <div class="setting-label">⏰ 발송 시간</div>
+        <div class="setting-desc">KST 기준 · 여러 시간 추가 가능</div>
       </div>
-      <div class="setting-value">매일 오전 9:00</div>
+      <div class="recipient-list" id="scheduleList">
+        <div style="text-align:center;padding:12px;color:var(--sub);font-size:12px;">불러오는 중…</div>
+      </div>
+      <div class="input-row" style="width:100%;margin-top:10px;">
+        <input class="text-input" id="scheduleInput" type="time" value="09:00" style="flex:1;" />
+        <button class="save-btn" onclick="addScheduleTime()">추가</button>
+      </div>
     </div>
 
+    <!-- 수신자 이메일 -->
     <div class="setting-row" style="flex-direction:column;align-items:flex-start;border-bottom:none;padding-bottom:0;">
       <div style="margin-bottom:12px;width:100%;">
         <div class="setting-label">수신자 이메일</div>
         <div class="setting-desc">요약 리포트를 수신할 이메일 목록</div>
       </div>
-      <!-- 수신자 목록 -->
       <div class="recipient-list" id="recipientList">
         <div style="text-align:center;padding:12px;color:var(--sub);font-size:12px;">불러오는 중…</div>
       </div>
-      <!-- 추가 입력 -->
       <div class="input-row" style="width:100%;margin-top:10px;">
         <input class="text-input" id="recipientInput" type="email" placeholder="추가할 이메일 입력" />
         <button class="save-btn" onclick="addRecipient()">추가</button>
@@ -338,6 +344,22 @@
     <div class="setting-row" style="border-bottom:none;padding-bottom:0;">
       <div></div>
       <button class="save-btn" onclick="saveSettings()" style="border-radius:10px;">설정 저장</button>
+    </div>
+  </div>
+
+  <!-- 분석 이메일 계정 -->
+  <div class="card">
+    <div class="card-title">📧 분석 이메일 계정</div>
+    <div style="font-size:11px;color:var(--sub);margin-bottom:12px;">뉴스레터를 읽어올 Gmail 계정 목록 (앱 비밀번호 필요)</div>
+    <div class="recipient-list" id="gmailAccountList">
+      <div style="text-align:center;padding:12px;color:var(--sub);font-size:12px;">불러오는 중…</div>
+    </div>
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+      <input class="text-input" id="gmailAddrInput" type="email" placeholder="Gmail 주소" style="width:100%;" />
+      <div class="input-row" style="width:100%;">
+        <input class="text-input" id="gmailPassInput" type="password" placeholder="앱 비밀번호 (16자리)" style="flex:1;" />
+        <button class="save-btn" onclick="addGmailAccount()">추가</button>
+      </div>
     </div>
   </div>
 
@@ -425,12 +447,17 @@ async function loadConfig() {
     config = JSON.parse(text);
     config._sha = data.sha;
 
-    // 수신자 목록 (배열 우선, 없으면 단수)
     const emails = config.recipient_emails
       || (config.recipient_email ? [config.recipient_email] : []);
     renderRecipients(emails);
     document.getElementById('maxEmails').value = config.max_emails || 20;
     document.getElementById('enabledToggle').checked = config.enabled !== false;
+
+    // 발송 시간
+    renderScheduleTimes(config.schedule_times || ['09:00']);
+
+    // 분석 계정
+    renderGmailAccounts(config.gmail_accounts || []);
 
     // Update status
     const dot = document.getElementById('statusDot');
@@ -469,6 +496,123 @@ async function saveConfig(updates) {
     config = prevConfig;  // 실패 시 원복
     showToast('저장 실패: ' + e.message, 'error');
     return false;
+  }
+}
+
+// ── Schedule Times ───────────────────────────────────────────────
+function renderScheduleTimes(times) {
+  const el = document.getElementById('scheduleList');
+  if (!times || times.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:12px;color:var(--sub);font-size:12px;">설정된 시간 없음</div>';
+    return;
+  }
+  el.innerHTML = times.map((t, i) => `
+    <div class="recipient-item ${i === 0 ? 'primary' : ''}">
+      <span class="recipient-email">🕐 ${t} KST</span>
+      ${i === 0 ? '<span class="recipient-badge">기본</span>' : ''}
+      <button class="remove-btn" onclick="removeScheduleTime(${i})" title="삭제">✕</button>
+    </div>
+  `).join('');
+}
+
+async function addScheduleTime() {
+  const val = document.getElementById('scheduleInput').value;
+  if (!val) return showToast('시간을 선택해주세요', 'error');
+  const times = config.schedule_times || ['09:00'];
+  if (times.includes(val)) return showToast('이미 등록된 시간입니다', 'error');
+  const newTimes = [...times, val].sort();
+  const ok = await saveConfig({ schedule_times: newTimes });
+  if (ok) {
+    renderScheduleTimes(newTimes);
+    await updateWorkflowSchedule(newTimes);
+    showToast(`${val} KST 추가됨 ✓`, 'success');
+  }
+}
+
+async function removeScheduleTime(index) {
+  const times = [...(config.schedule_times || ['09:00'])];
+  if (times.length <= 1) return showToast('최소 1개의 발송 시간이 필요합니다', 'error');
+  const removed = times.splice(index, 1)[0];
+  const ok = await saveConfig({ schedule_times: times });
+  if (ok) {
+    renderScheduleTimes(times);
+    await updateWorkflowSchedule(times);
+    showToast(`${removed} KST 삭제됨`, 'info');
+  }
+}
+
+async function updateWorkflowSchedule(kstTimes) {
+  try {
+    const wf = await ghFetch(`/repos/${OWNER}/${REPO}/contents/.github/workflows/daily-digest.yml`);
+    const original = atob(wf.content.replace(/\n/g, ''));
+
+    // KST → UTC 변환 후 cron 생성
+    const cronLines = kstTimes.map(t => {
+      const [hStr, mStr] = t.split(':');
+      const utcH = ((parseInt(hStr) - 9) + 24) % 24;
+      const utcM = parseInt(mStr);
+      return `    - cron: "${utcM} ${utcH} * * *"  # KST ${t}`;
+    }).join('\n');
+
+    const newScheduleBlock = `  schedule:\n${cronLines}`;
+    const updated = original.replace(/  schedule:\n(    - cron:[^\n]*\n?)+/, newScheduleBlock + '\n');
+
+    const encoded = btoa(unescape(encodeURIComponent(updated)));
+    await ghFetch(`/repos/${OWNER}/${REPO}/contents/.github/workflows/daily-digest.yml`, {
+      method: 'PUT',
+      body: JSON.stringify({ message: '⏰ schedule update via admin', content: encoded, sha: wf.sha }),
+    });
+  } catch(e) {
+    showToast('워크플로우 업데이트 실패: ' + e.message, 'error');
+  }
+}
+
+// ── Gmail Accounts ───────────────────────────────────────────────
+function renderGmailAccounts(accounts) {
+  const el = document.getElementById('gmailAccountList');
+  if (!accounts || accounts.length === 0) {
+    el.innerHTML = '<div style="text-align:center;padding:12px;color:var(--sub);font-size:12px;">등록된 계정 없음</div>';
+    return;
+  }
+  el.innerHTML = accounts.map((acc, i) => `
+    <div class="recipient-item ${i === 0 ? 'primary' : ''}">
+      <div style="flex:1;min-width:0;">
+        <div class="recipient-email">${acc.address}</div>
+        <div style="font-size:10px;color:var(--sub);margin-top:2px;">●●●● ●●●● ●●●● ●●●●</div>
+      </div>
+      ${i === 0 ? '<span class="recipient-badge">주 계정</span>' : ''}
+      <button class="remove-btn" onclick="removeGmailAccount(${i})" title="삭제">✕</button>
+    </div>
+  `).join('');
+}
+
+async function addGmailAccount() {
+  const addr = document.getElementById('gmailAddrInput').value.trim();
+  const pass = document.getElementById('gmailPassInput').value.trim();
+  if (!addr || !addr.includes('@')) return showToast('올바른 이메일을 입력하세요', 'error');
+  if (!pass || pass.length < 8) return showToast('앱 비밀번호를 입력하세요', 'error');
+
+  const accounts = config.gmail_accounts || [];
+  if (accounts.find(a => a.address === addr)) return showToast('이미 등록된 계정입니다', 'error');
+
+  const newAccounts = [...accounts, { address: addr, app_password: pass }];
+  const ok = await saveConfig({ gmail_accounts: newAccounts });
+  if (ok) {
+    document.getElementById('gmailAddrInput').value = '';
+    document.getElementById('gmailPassInput').value = '';
+    renderGmailAccounts(newAccounts);
+    showToast(`${addr} 추가됨 ✓`, 'success');
+  }
+}
+
+async function removeGmailAccount(index) {
+  const accounts = [...(config.gmail_accounts || [])];
+  if (accounts.length <= 1) return showToast('최소 1개의 계정이 필요합니다', 'error');
+  const removed = accounts.splice(index, 1)[0];
+  const ok = await saveConfig({ gmail_accounts: accounts });
+  if (ok) {
+    renderGmailAccounts(accounts);
+    showToast(`${removed.address} 삭제됨`, 'info');
   }
 }
 
