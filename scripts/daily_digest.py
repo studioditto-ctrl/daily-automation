@@ -224,7 +224,7 @@ def generate_html(emails: list[dict], today: str) -> str:
     )
 
     msg = client.messages.create(
-        model="claude-opus-4-6",
+        model="claude-haiku-4-5-20251001",
         max_tokens=4096,
         messages=[{"role": "user", "content": prompt}],
     )
