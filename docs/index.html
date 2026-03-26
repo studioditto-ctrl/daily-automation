@@ -34,7 +34,7 @@
     border-bottom: 1px solid #3730a3;
   }
   .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
-  .header h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
+  .header h1  { font-size: 20px; font-weight: 800; letter-spacing: -0.3px; }
   .header-sub { font-size: 12px; color: #a5b4fc; }
   .status-pill {
     display: inline-flex; align-items: center; gap: 5px;
@@ -43,7 +43,7 @@
   }
   .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   .dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
-  .dot.gray { background: var(--sub); }
+  .dot.gray  { background: var(--sub); }
   .dot.pulse { animation: pulse 1.5s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
@@ -74,7 +74,7 @@
     margin-bottom: 12px;
     -webkit-tap-highlight-color: transparent;
   }
-  .run-btn:active { transform: scale(0.97); opacity: 0.9; }
+  .run-btn:active  { transform: scale(0.97); opacity: 0.9; }
   .run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .run-btn.running { background: linear-gradient(135deg, #374151, #4b5563); }
 
@@ -86,21 +86,15 @@
     border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;
   }
   .last-run-left { display: flex; align-items: center; gap: 10px; }
-  .last-run-icon { font-size: 24px; }
+  .last-run-icon  { font-size: 24px; }
   .last-run-label { font-size: 11px; color: var(--sub); margin-bottom: 2px; }
-  .last-run-time { font-size: 14px; font-weight: 700; }
+  .last-run-time  { font-size: 14px; font-weight: 700; }
   .last-run-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; }
-  .badge-success { background: rgba(34,197,94,0.15); color: var(--green); }
-  .badge-fail    { background: rgba(239,68,68,0.15);  color: var(--red);   }
-  .badge-running { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .badge-success { background: rgba(34,197,94,0.15);  color: var(--green); }
+  .badge-fail    { background: rgba(239,68,68,0.15);   color: var(--red);   }
+  .badge-running { background: rgba(245,158,11,0.15);  color: var(--yellow); }
 
-  /* Setting Row */
-  .setting-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 13px 0; border-bottom: 1px solid var(--border);
-  }
-  .setting-row:last-child { border-bottom: none; padding-bottom: 0; }
-  .setting-row:first-child { padding-top: 0; }
+  /* Text */
   .setting-label { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
   .setting-desc  { font-size: 11px; color: var(--sub); }
 
@@ -184,16 +178,24 @@
     overflow: hidden;
   }
   .set-header {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: center; gap: 8px;
     padding: 12px 14px;
     background: rgba(99,102,241,0.06);
     border-bottom: 1px solid var(--border);
   }
-  .set-num {
-    font-size: 12px; font-weight: 800; color: var(--accent2);
-    letter-spacing: 0.3px;
+  .set-num { font-size: 12px; font-weight: 800; color: var(--accent2); flex-shrink: 0; }
+  .set-name-input {
+    flex: 1 !important; width: auto !important;
+    padding: 5px 10px !important; font-size: 12px !important;
+    border-radius: 7px !important;
   }
-  .set-body { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+  .set-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-bottom: 1px solid var(--border);
+  }
+  .set-section {
+    padding: 12px 14px; border-bottom: 1px solid var(--border);
+  }
   .set-section-label {
     font-size: 10px; font-weight: 700; color: var(--sub);
     text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px;
@@ -209,11 +211,10 @@
   .add-set-form {
     background: var(--card2);
     border: 1px dashed rgba(99,102,241,0.35);
-    border-radius: 14px;
-    padding: 16px;
-    margin-bottom: 10px;
+    border-radius: 14px; padding: 16px; margin-bottom: 10px;
     display: flex; flex-direction: column; gap: 10px;
   }
+  .add-set-form.hidden { display: none !important; }
   .add-set-btn {
     width: 100%; padding: 14px;
     background: rgba(99,102,241,0.08);
@@ -224,10 +225,6 @@
     transition: all 0.2s; margin-bottom: 10px;
   }
   .add-set-btn:active { background: rgba(99,102,241,0.15); }
-  .add-set-form.hidden { display: none !important; }
-
-  /* Divider */
-  .divider { border: none; border-top: 1px solid var(--border); margin: 0; }
 
   /* Logs */
   .log-item {
@@ -235,13 +232,10 @@
     padding: 10px 0; border-bottom: 1px solid var(--border);
   }
   .log-item:last-child { border-bottom: none; }
-  .log-icon { font-size: 16px; flex-shrink: 0; }
-  .log-time { font-size: 12px; font-weight: 600; flex: 1; }
-  .log-dur  { font-size: 11px; color: var(--sub); }
-  .log-status {
-    font-size: 11px; font-weight: 700; padding: 3px 8px;
-    border-radius: 10px; flex-shrink: 0;
-  }
+  .log-icon  { font-size: 16px; flex-shrink: 0; }
+  .log-time  { font-size: 12px; font-weight: 600; flex: 1; }
+  .log-dur   { font-size: 11px; color: var(--sub); }
+  .log-status { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; flex-shrink: 0; }
 
   /* Toast */
   .toast {
@@ -254,7 +248,7 @@
     transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
     z-index: 1000; white-space: nowrap;
   }
-  .toast.show   { transform: translateX(-50%) translateY(0); }
+  .toast.show    { transform: translateX(-50%) translateY(0); }
   .toast.success { border-left: 3px solid var(--green); }
   .toast.error   { border-left: 3px solid var(--red); }
   .toast.info    { border-left: 3px solid var(--accent); }
@@ -291,62 +285,14 @@
   </div>
 
   <!-- Run Now -->
-  <button class="run-btn" id="runBtn" onclick="runNow()">
+  <button type="button" class="run-btn" id="runBtn" onclick="runNow()">
     <span>▶</span> 지금 바로 실행
   </button>
 
-  <!-- ⚙️ 전역 설정 -->
-  <div class="card">
-    <div class="card-title">⚙️ 전역 설정</div>
-
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">서비스 활성화</div>
-        <div class="setting-desc">비활성화 시 스케줄 실행 건너뜀</div>
-      </div>
-      <label class="toggle">
-        <input type="checkbox" id="enabledToggle" checked onchange="saveEnabled()">
-        <span class="slider"></span>
-      </label>
-    </div>
-
-    <!-- 발송 시간 -->
-    <div class="setting-row" style="flex-direction:column;align-items:flex-start;">
-      <div style="display:flex;justify-content:space-between;width:100%;margin-bottom:10px;">
-        <div>
-          <div class="setting-label">⏰ 발송 시간</div>
-          <div class="setting-desc">KST 기준 · 여러 시간 가능</div>
-        </div>
-      </div>
-      <div class="chips-row" id="scheduleChips" style="margin-bottom:10px;"></div>
-      <div class="input-row" style="width:100%;">
-        <input class="text-input" id="scheduleInput" type="time" value="09:00" />
-        <button class="btn" onclick="addScheduleTime()">추가</button>
-      </div>
-    </div>
-
-    <!-- 최대 메일 수 -->
-    <div class="setting-row">
-      <div>
-        <div class="setting-label">최대 분석 메일 수</div>
-        <div class="setting-desc">계정당 검색 최대 개수</div>
-      </div>
-      <div class="stepper">
-        <button class="step-btn" onclick="stepEmails(-5)">−</button>
-        <input class="step-val" id="maxEmails" value="20" readonly />
-        <button class="step-btn" onclick="stepEmails(5)">+</button>
-      </div>
-    </div>
-
-    <div style="display:flex;justify-content:flex-end;padding-top:12px;">
-      <button class="btn" onclick="saveSettings()">설정 저장</button>
-    </div>
-  </div>
-
   <!-- 📬 이메일 SET -->
   <div class="card">
-    <div class="card-title">📬 이메일 SET</div>
-    <div style="font-size:11px;color:var(--sub);margin-bottom:14px;">분석 계정 + 수신자를 하나의 SET로 관리합니다</div>
+    <div class="card-title">📬 이메일 SET 관리</div>
+    <div style="font-size:11px;color:var(--sub);margin-bottom:14px;">각 SET마다 발송 시간·분석 계정·수신자를 독립적으로 설정합니다</div>
     <div id="emailSetsContainer"></div>
 
     <!-- + SET 추가 버튼 -->
@@ -354,15 +300,16 @@
       + SET 추가
     </button>
 
-    <!-- SET 추가 폼 (기본 숨김) -->
+    <!-- SET 추가 폼 -->
     <div class="add-set-form hidden" id="addSetForm">
-      <div style="font-size:12px;font-weight:700;color:var(--accent2);margin-bottom:2px;">새 SET 등록</div>
-      <input class="text-input" id="newGmailAddr" type="email" placeholder="분석할 Gmail 주소" />
+      <div style="font-size:12px;font-weight:700;color:var(--accent2);">새 SET 등록</div>
+      <input class="text-input" id="newSetName"   type="text"     placeholder="SET 이름 (예: 뉴스레터)" />
+      <input class="text-input" id="newGmailAddr" type="email"    placeholder="분석할 Gmail 주소" />
       <input class="text-input" id="newGmailPass" type="password" placeholder="앱 비밀번호 (16자리)" />
-      <input class="text-input" id="newRecipient" type="email" placeholder="수신자 이메일" />
+      <input class="text-input" id="newRecipient" type="email"    placeholder="수신자 이메일" />
       <div class="input-row">
         <button type="button" class="btn secondary" style="flex:1;" onclick="toggleAddSetForm()">취소</button>
-        <button type="button" class="btn" style="flex:1;" onclick="addEmailSet()">SET 추가</button>
+        <button type="button" class="btn"           style="flex:1;" onclick="addEmailSet()">SET 추가</button>
       </div>
     </div>
   </div>
@@ -378,13 +325,13 @@
   <!-- ℹ️ 정보 -->
   <div class="card" style="border-color:rgba(99,102,241,0.3);">
     <div class="card-title">ℹ️ 정보</div>
-    <div class="setting-row">
-      <div class="setting-label">리포지토리</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+      <span class="setting-label">리포지토리</span>
       <span style="font-size:11px;color:var(--accent2);">studioditto-ctrl/daily-automation</span>
     </div>
-    <div class="setting-row" style="border-bottom:none;">
-      <div class="setting-label">어드민 URL</div>
-      <button class="btn secondary" style="padding:6px 12px;font-size:11px;"
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;">
+      <span class="setting-label">어드민 URL</span>
+      <button type="button" class="btn secondary" style="padding:6px 12px;font-size:11px;"
         onclick="navigator.clipboard.writeText(location.href).then(()=>showToast('URL 복사됨 ✓','success'))">📋 복사</button>
     </div>
   </div>
@@ -393,10 +340,10 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const OWNER = 'studioditto-ctrl';
-const REPO  = 'daily-automation';
+const OWNER    = 'studioditto-ctrl';
+const REPO     = 'daily-automation';
 const WORKFLOW = 'daily-digest.yml';
-const API = 'https://api.github.com';
+const API      = 'https://api.github.com';
 
 // ── 토큰 자동 저장 ─────────────────────────────────────────────
 (function() {
@@ -407,7 +354,7 @@ const API = 'https://api.github.com';
   }
 })();
 
-let pat = localStorage.getItem('gh_pat') || '';
+let pat    = localStorage.getItem('gh_pat') || '';
 let config = {};
 
 window.onload = () => {
@@ -444,17 +391,9 @@ async function loadConfig() {
     const data = await ghFetch(`/repos/${OWNER}/${REPO}/contents/config.json`);
     config = JSON.parse(atob(data.content.replace(/\n/g, '')));
     config._sha = data.sha;
-
-    document.getElementById('maxEmails').value = config.max_emails || 20;
-    document.getElementById('enabledToggle').checked = config.enabled !== false;
-
-    const dot = document.getElementById('statusDot');
-    const stText = document.getElementById('statusText');
-    if (config.enabled !== false) { dot.className = 'dot green pulse'; stText.textContent = '활성화'; }
-    else                          { dot.className = 'dot gray';        stText.textContent = '비활성화'; }
-
-    renderScheduleChips(config.schedule_times || ['09:00']);
-    renderEmailSets(config.email_sets || []);
+    const sets = config.email_sets || [];
+    updateStatusPill(sets.filter(s => s.enabled !== false).length);
+    renderEmailSets(sets);
   } catch(e) {
     showToast('설정 로드 실패: ' + e.message, 'error');
   }
@@ -464,7 +403,7 @@ async function saveConfig(updates) {
   const prev = { ...config };
   try {
     config = { ...config, ...updates };
-    const sha = config._sha;
+    const sha  = config._sha;
     const body = { ...config };
     delete body._sha;
     const res = await ghFetch(`/repos/${OWNER}/${REPO}/contents/config.json`, {
@@ -484,141 +423,161 @@ async function saveConfig(updates) {
   }
 }
 
-// ── 서비스 활성화 ───────────────────────────────────────────────
-function saveEnabled() {
-  const enabled = document.getElementById('enabledToggle').checked;
-  saveConfig({ enabled }).then(ok => {
-    if (!ok) return;
-    const dot = document.getElementById('statusDot');
-    const stText = document.getElementById('statusText');
-    if (enabled) { dot.className = 'dot green pulse'; stText.textContent = '활성화'; showToast('활성화됨', 'success'); }
-    else         { dot.className = 'dot gray';        stText.textContent = '비활성화'; showToast('비활성화됨', 'info'); }
-  });
+// ── Status Pill ────────────────────────────────────────────────
+function updateStatusPill(activeCount) {
+  const dot    = document.getElementById('statusDot');
+  const stText = document.getElementById('statusText');
+  if (activeCount > 0) { dot.className = 'dot green pulse'; stText.textContent = `${activeCount}개 활성`; }
+  else                 { dot.className = 'dot gray';        stText.textContent = '비활성'; }
 }
 
-// ── 발송 시간 ──────────────────────────────────────────────────
-function renderScheduleChips(times) {
-  document.getElementById('scheduleChips').innerHTML = times.map((t, i) => `
-    <div class="chip ${i === 0 ? 'primary' : ''}">
-      🕐 ${t} KST
-      <button class="chip-remove" onclick="removeScheduleTime(${i})">✕</button>
-    </div>`).join('');
-}
-
-async function addScheduleTime() {
-  const val = document.getElementById('scheduleInput').value;
-  if (!val) return showToast('시간을 선택해주세요', 'error');
-  const times = config.schedule_times || ['09:00'];
-  if (times.includes(val)) return showToast('이미 등록된 시간입니다', 'error');
-  const newTimes = [...times, val].sort();
-  const ok = await saveConfig({ schedule_times: newTimes });
-  if (ok) { renderScheduleChips(newTimes); await updateWorkflowSchedule(newTimes); showToast(`${val} KST 추가됨 ✓`, 'success'); }
-}
-
-async function removeScheduleTime(idx) {
-  const times = [...(config.schedule_times || ['09:00'])];
-  if (times.length <= 1) return showToast('최소 1개의 발송 시간이 필요합니다', 'error');
-  const removed = times.splice(idx, 1)[0];
-  const ok = await saveConfig({ schedule_times: times });
-  if (ok) { renderScheduleChips(times); await updateWorkflowSchedule(times); showToast(`${removed} KST 삭제됨`, 'info'); }
-}
-
-async function updateWorkflowSchedule(kstTimes) {
-  try {
-    const wf = await ghFetch(`/repos/${OWNER}/${REPO}/contents/.github/workflows/daily-digest.yml`);
-    const original = atob(wf.content.replace(/\n/g, ''));
-    const cronLines = kstTimes.map(t => {
-      const [hStr, mStr] = t.split(':');
-      const utcH = ((parseInt(hStr) - 9) + 24) % 24;
-      return `    - cron: "${parseInt(mStr)} ${utcH} * * *"  # KST ${t}`;
-    }).join('\n');
-    const updated = original.replace(/  schedule:\n(    - cron:[^\n]*\n?)+/, `  schedule:\n${cronLines}\n`);
-    await ghFetch(`/repos/${OWNER}/${REPO}/contents/.github/workflows/daily-digest.yml`, {
-      method: 'PUT',
-      body: JSON.stringify({ message: '⏰ schedule update via admin', content: btoa(unescape(encodeURIComponent(updated))), sha: wf.sha }),
-    });
-  } catch(e) { showToast('워크플로우 업데이트 실패: ' + e.message, 'error'); }
-}
-
-// ── 이메일 SET ─────────────────────────────────────────────────
+// ── SET 렌더링 ─────────────────────────────────────────────────
 function renderEmailSets(sets) {
   const el = document.getElementById('emailSetsContainer');
   if (!sets || sets.length === 0) {
     el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--sub);font-size:12px;margin-bottom:10px;">등록된 SET이 없습니다</div>';
     return;
   }
-  el.innerHTML = sets.map((s, i) => `
+  el.innerHTML = sets.map((s, i) => {
+    const schedTimes  = s.schedule_times || ['09:00'];
+    const schedChips  = schedTimes.map((t, ti) => `
+      <div class="chip primary">🕐 ${t}
+        <button type="button" class="chip-remove" onclick="removeScheduleTimeFromSet(${i},${ti})">✕</button>
+      </div>`).join('');
+    const recipChips  = (s.recipients || []).map((r, j) => `
+      <div class="chip ${j === 0 ? 'primary' : ''}">
+        ${r}
+        <button type="button" class="chip-remove" onclick="removeRecipientFromSet(${i},${j})">✕</button>
+      </div>`).join('') || '<span style="font-size:12px;color:var(--sub);">수신자 없음</span>';
+
+    return `
     <div class="set-card">
       <div class="set-header">
-        <span class="set-num">SET ${i + 1}${i === 0 ? ' · 기본' : ''}</span>
-        <button class="btn danger" style="padding:5px 10px;font-size:11px;" onclick="removeEmailSet(${i})">삭제</button>
+        <span class="set-num">SET ${i + 1}</span>
+        <input type="text" class="text-input set-name-input" id="set-name-${i}"
+          value="${(s.name || '').replace(/"/g, '&quot;')}" placeholder="SET 이름 (선택)" />
+        <button type="button" class="btn danger" style="padding:5px 10px;font-size:11px;flex-shrink:0;"
+          onclick="removeEmailSet(${i})">삭제</button>
       </div>
       <div class="set-body">
-        <div>
+
+        <!-- 서비스 활성화 -->
+        <div class="set-row">
+          <div class="setting-label" style="font-size:12px;">서비스 활성화</div>
+          <label class="toggle">
+            <input type="checkbox" id="set-enabled-${i}" ${s.enabled !== false ? 'checked' : ''}
+              onchange="toggleSetEnabled(${i})">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- 발송 시간 -->
+        <div class="set-section">
+          <div class="set-section-label">⏰ 발송 시간 <span style="text-transform:none;letter-spacing:0;font-weight:400;">(KST)</span></div>
+          <div class="chips-row" id="set-sched-chips-${i}" style="margin-bottom:8px;">${schedChips}</div>
+          <div class="input-row">
+            <input class="text-input" id="sched-input-${i}" type="time" value="09:00" />
+            <button type="button" class="btn" onclick="addScheduleTimeToSet(${i})">추가</button>
+          </div>
+        </div>
+
+        <!-- 최대 분석 메일 수 -->
+        <div class="set-row">
+          <div>
+            <div class="setting-label" style="font-size:12px;">최대 분석 메일 수</div>
+            <div class="setting-desc">이 계정의 최대 개수</div>
+          </div>
+          <div class="stepper">
+            <button type="button" class="step-btn" onclick="stepSetEmails(${i}, -5)">−</button>
+            <input class="step-val" id="max-emails-${i}" value="${s.max_emails || 20}" readonly />
+            <button type="button" class="step-btn" onclick="stepSetEmails(${i}, 5)">+</button>
+          </div>
+        </div>
+
+        <!-- 분석 계정 -->
+        <div class="set-section">
           <div class="set-section-label">📥 분석 계정</div>
           <div class="set-account">
             <div class="set-account-addr">${s.gmail_address || '(미설정)'}</div>
             <div class="set-account-pass">${s.app_password ? '●●●● ●●●● ●●●● ●●●●' : '⚠️ 앱 비밀번호 없음'}</div>
           </div>
         </div>
-        <div>
+
+        <!-- 수신자 -->
+        <div class="set-section">
           <div class="set-section-label">📤 수신자</div>
-          <div class="chips-row" id="recipients-${i}" style="margin-bottom:8px;">
-            ${(s.recipients || []).map((r, j) => `
-              <div class="chip ${j === 0 ? 'primary' : ''}">
-                ${r}
-                <button class="chip-remove" onclick="removeRecipientFromSet(${i},${j})">✕</button>
-              </div>`).join('')}
-            ${(!s.recipients || s.recipients.length === 0) ? '<span style="font-size:12px;color:var(--sub);">수신자 없음</span>' : ''}
-          </div>
+          <div class="chips-row" style="margin-bottom:8px;">${recipChips}</div>
           <div class="input-row">
-            <input class="text-input" id="recip-input-${i}" type="email" placeholder="수신자 이메일 추가" style="flex:1;" />
-            <button class="btn" onclick="addRecipientToSet(${i})" style="padding:10px 12px;">추가</button>
+            <input class="text-input" id="recip-input-${i}" type="email"
+              placeholder="수신자 이메일 추가" style="flex:1;" />
+            <button type="button" class="btn" onclick="addRecipientToSet(${i})"
+              style="padding:10px 12px;">추가</button>
           </div>
         </div>
+
+        <!-- 저장 -->
+        <div style="display:flex;justify-content:flex-end;padding:12px 14px;">
+          <button type="button" class="btn" onclick="saveSetDetails(${i})">변경사항 저장</button>
+        </div>
+
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
-function toggleAddSetForm() {
-  const form = document.getElementById('addSetForm');
-  const btn  = document.getElementById('addSetBtn');
-  if (!form || !btn) return;
-  const isHidden = form.classList.contains('hidden');
-  form.classList.toggle('hidden', !isHidden);
-  btn.style.display = isHidden ? 'none' : 'flex';
-  if (isHidden) setTimeout(() => document.getElementById('newGmailAddr').focus(), 50);
-}
-
-async function addEmailSet() {
-  const addr = document.getElementById('newGmailAddr').value.trim();
-  const pass = document.getElementById('newGmailPass').value.trim();
-  const recip = document.getElementById('newRecipient').value.trim();
-  if (!addr || !addr.includes('@')) return showToast('올바른 Gmail 주소를 입력하세요', 'error');
-  if (!pass || pass.length < 8)     return showToast('앱 비밀번호를 입력하세요', 'error');
-  if (!recip || !recip.includes('@')) return showToast('올바른 수신자 이메일을 입력하세요', 'error');
-
-  const sets = [...(config.email_sets || [])];
-  sets.push({ gmail_address: addr, app_password: pass, recipients: [recip] });
+// ── 활성화 토글 (즉시 저장) ────────────────────────────────────
+async function toggleSetEnabled(setIdx) {
+  const sets = JSON.parse(JSON.stringify(config.email_sets || []));
+  if (!sets[setIdx]) return;
+  sets[setIdx].enabled = document.getElementById(`set-enabled-${setIdx}`).checked;
   const ok = await saveConfig({ email_sets: sets });
   if (ok) {
-    document.getElementById('newGmailAddr').value = '';
-    document.getElementById('newGmailPass').value = '';
-    document.getElementById('newRecipient').value = '';
-    toggleAddSetForm();
-    renderEmailSets(sets);
-    showToast('SET 추가됨 ✓', 'success');
+    updateStatusPill(sets.filter(s => s.enabled !== false).length);
+    showToast(sets[setIdx].enabled ? '활성화됨' : '비활성화됨',
+              sets[setIdx].enabled ? 'success' : 'info');
   }
 }
 
-async function removeEmailSet(idx) {
-  const sets = [...(config.email_sets || [])];
-  if (sets.length <= 1) return showToast('최소 1개의 SET이 필요합니다', 'error');
-  sets.splice(idx, 1);
-  const ok = await saveConfig({ email_sets: sets });
-  if (ok) { renderEmailSets(sets); showToast('SET 삭제됨', 'info'); }
+// ── 이름 + max_emails 저장 ─────────────────────────────────────
+function stepSetEmails(setIdx, delta) {
+  const el = document.getElementById(`max-emails-${setIdx}`);
+  el.value = Math.max(5, Math.min(50, parseInt(el.value) + delta));
 }
 
+async function saveSetDetails(setIdx) {
+  const sets = JSON.parse(JSON.stringify(config.email_sets || []));
+  if (!sets[setIdx]) return;
+  sets[setIdx].name       = document.getElementById(`set-name-${setIdx}`).value.trim();
+  sets[setIdx].max_emails = parseInt(document.getElementById(`max-emails-${setIdx}`).value);
+  const ok = await saveConfig({ email_sets: sets });
+  if (ok) showToast('저장 완료 ✓', 'success');
+}
+
+// ── 발송 시간 (즉시 저장) ──────────────────────────────────────
+async function addScheduleTimeToSet(setIdx) {
+  const val = document.getElementById(`sched-input-${setIdx}`).value;
+  if (!val) return showToast('시간을 선택해주세요', 'error');
+  const sets = JSON.parse(JSON.stringify(config.email_sets || []));
+  if (!sets[setIdx]) return;
+  const times = sets[setIdx].schedule_times || ['09:00'];
+  if (times.includes(val)) return showToast('이미 등록된 시간입니다', 'error');
+  sets[setIdx].schedule_times = [...times, val].sort();
+  const ok = await saveConfig({ email_sets: sets });
+  if (ok) { renderEmailSets(sets); showToast(`${val} KST 추가됨 ✓`, 'success'); }
+}
+
+async function removeScheduleTimeFromSet(setIdx, timeIdx) {
+  const sets = JSON.parse(JSON.stringify(config.email_sets || []));
+  if (!sets[setIdx]) return;
+  const times = sets[setIdx].schedule_times || ['09:00'];
+  if (times.length <= 1) return showToast('최소 1개의 발송 시간이 필요합니다', 'error');
+  const removed = times.splice(timeIdx, 1)[0];
+  sets[setIdx].schedule_times = times;
+  const ok = await saveConfig({ email_sets: sets });
+  if (ok) { renderEmailSets(sets); showToast(`${removed} KST 삭제됨`, 'info'); }
+}
+
+// ── 수신자 (즉시 저장) ─────────────────────────────────────────
 async function addRecipientToSet(setIdx) {
   const email = document.getElementById(`recip-input-${setIdx}`).value.trim();
   if (!email || !email.includes('@')) return showToast('올바른 이메일을 입력하세요', 'error');
@@ -627,7 +586,7 @@ async function addRecipientToSet(setIdx) {
   if ((sets[setIdx].recipients || []).includes(email)) return showToast('이미 등록된 수신자입니다', 'error');
   sets[setIdx].recipients = [...(sets[setIdx].recipients || []), email];
   const ok = await saveConfig({ email_sets: sets });
-  if (ok) { document.getElementById(`recip-input-${setIdx}`).value = ''; renderEmailSets(sets); showToast(`${email} 추가됨 ✓`, 'success'); }
+  if (ok) { renderEmailSets(sets); showToast(`${email} 추가됨 ✓`, 'success'); }
 }
 
 async function removeRecipientFromSet(setIdx, recipIdx) {
@@ -639,43 +598,93 @@ async function removeRecipientFromSet(setIdx, recipIdx) {
   if (ok) { renderEmailSets(sets); showToast(`${removed} 삭제됨`, 'info'); }
 }
 
-// ── 설정 저장 ──────────────────────────────────────────────────
-function stepEmails(delta) {
-  const el = document.getElementById('maxEmails');
-  el.value = Math.max(5, Math.min(50, parseInt(el.value) + delta));
+// ── SET 삭제 ───────────────────────────────────────────────────
+async function removeEmailSet(idx) {
+  const sets = [...(config.email_sets || [])];
+  sets.splice(idx, 1);
+  const ok = await saveConfig({ email_sets: sets });
+  if (ok) {
+    renderEmailSets(sets);
+    updateStatusPill(sets.filter(s => s.enabled !== false).length);
+    showToast('SET 삭제됨', 'info');
+  }
 }
-function saveSettings() {
-  saveConfig({ max_emails: parseInt(document.getElementById('maxEmails').value) })
-    .then(ok => { if (ok) showToast('설정 저장 완료 ✓', 'success'); });
+
+// ── SET 추가 폼 ────────────────────────────────────────────────
+function toggleAddSetForm() {
+  const form = document.getElementById('addSetForm');
+  const btn  = document.getElementById('addSetBtn');
+  if (!form || !btn) return;
+  const isHidden = form.classList.contains('hidden');
+  form.classList.toggle('hidden', !isHidden);
+  btn.style.display = isHidden ? 'none' : 'flex';
+  if (isHidden) setTimeout(() => document.getElementById('newSetName').focus(), 50);
+}
+
+async function addEmailSet() {
+  const name  = document.getElementById('newSetName').value.trim();
+  const addr  = document.getElementById('newGmailAddr').value.trim();
+  const pass  = document.getElementById('newGmailPass').value.trim();
+  const recip = document.getElementById('newRecipient').value.trim();
+  if (!addr || !addr.includes('@')) return showToast('올바른 Gmail 주소를 입력하세요', 'error');
+  if (!pass || pass.length < 8)     return showToast('앱 비밀번호를 입력하세요', 'error');
+  if (!recip || !recip.includes('@')) return showToast('올바른 수신자 이메일을 입력하세요', 'error');
+
+  const sets = [...(config.email_sets || [])];
+  sets.push({
+    name:           name || `SET ${sets.length + 1}`,
+    gmail_address:  addr,
+    app_password:   pass,
+    recipients:     [recip],
+    enabled:        true,
+    schedule_times: ['09:00'],
+    max_emails:     20,
+  });
+  const ok = await saveConfig({ email_sets: sets });
+  if (ok) {
+    ['newSetName','newGmailAddr','newGmailPass','newRecipient'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    toggleAddSetForm();
+    renderEmailSets(sets);
+    updateStatusPill(sets.filter(s => s.enabled !== false).length);
+    showToast('SET 추가됨 ✓', 'success');
+  }
 }
 
 // ── Workflow Runs ──────────────────────────────────────────────
 async function loadRuns() {
   try {
     const data = await ghFetch(`/repos/${OWNER}/${REPO}/actions/runs?per_page=8`);
-    const runs = data.workflow_runs || [];
+    const runs  = data.workflow_runs || [];
     if (runs.length === 0) {
-      document.getElementById('logList').innerHTML = '<div style="text-align:center;padding:16px;color:var(--sub);font-size:13px;">실행 기록 없음</div>';
+      document.getElementById('logList').innerHTML =
+        '<div style="text-align:center;padding:16px;color:var(--sub);font-size:13px;">실행 기록 없음</div>';
       return;
     }
     const latest  = runs[0];
     const lActive = latest.status === 'in_progress' || latest.status === 'queued';
-    document.getElementById('lastRunIcon').textContent = latest.conclusion === 'success' ? '✅' : lActive ? '🔄' : '❌';
+    document.getElementById('lastRunIcon').textContent =
+      latest.conclusion === 'success' ? '✅' : lActive ? '🔄' : '❌';
     document.getElementById('lastRunTime').textContent = formatDate(latest.created_at);
     const badge = document.getElementById('lastRunBadge');
     if (badge) {
       badge.className = `last-run-badge ${latest.conclusion === 'success' ? 'badge-success' : lActive ? 'badge-running' : 'badge-fail'}`;
-      badge.textContent = latest.conclusion === 'success' ? '성공' : latest.status === 'queued' ? '대기중' : lActive ? '실행중' : '실패';
+      badge.textContent =
+        latest.conclusion === 'success' ? '성공'
+        : latest.status === 'queued'    ? '대기중'
+        : lActive                        ? '실행중' : '실패';
     }
-    document.getElementById('statusText').textContent =
-      document.getElementById('enabledToggle').checked ? '활성화' : '비활성화';
 
     document.getElementById('logList').innerHTML = runs.map(run => {
       const active = run.status === 'in_progress' || run.status === 'queued';
       const icon   = run.conclusion === 'success' ? '✅' : active ? '🔄' : '❌';
       const cls    = run.conclusion === 'success' ? 'badge-success' : active ? 'badge-running' : 'badge-fail';
-      const label  = run.conclusion === 'success' ? '성공' : run.status === 'queued' ? '대기중' : active ? '실행중' : (run.conclusion || '실패');
-      const dur    = run.updated_at && run.created_at ? Math.round((new Date(run.updated_at) - new Date(run.created_at)) / 1000) + 's' : '-';
+      const label  = run.conclusion === 'success' ? '성공'
+                   : run.status === 'queued'      ? '대기중'
+                   : active                        ? '실행중' : (run.conclusion || '실패');
+      const dur    = run.updated_at && run.created_at
+        ? Math.round((new Date(run.updated_at) - new Date(run.created_at)) / 1000) + 's' : '-';
       return `<div class="log-item">
         <div class="log-icon">${icon}</div>
         <div style="flex:1;">
@@ -686,7 +695,8 @@ async function loadRuns() {
       </div>`;
     }).join('');
   } catch(e) {
-    document.getElementById('logList').innerHTML = `<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">${e.message}</div>`;
+    document.getElementById('logList').innerHTML =
+      `<div style="text-align:center;padding:16px;color:var(--red);font-size:13px;">${e.message}</div>`;
   }
 }
 

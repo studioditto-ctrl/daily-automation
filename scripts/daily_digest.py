@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-매일 오전 9시(KST) 뉴스레터 자동 요약 발송 스크립트.
-GitHub Actions cron: '0 0 * * *' (UTC 00:00 = KST 09:00)
+뉴스레터 자동 요약 발송 스크립트.
+- 매시 정각 GitHub Actions cron 실행 → 각 SET의 schedule_times 체크
+- 어드민 수동 실행(workflow_dispatch) → 시간 체크 없이 모든 활성 SET 실행
 
 필요한 GitHub Secrets:
   ANTHROPIC_API_KEY
-  GMAIL_ADDRESS       (예: your@gmail.com)
-  GMAIL_APP_PASSWORD  (Google 앱 비밀번호 16자리)
-  RECIPIENT_EMAIL     (예: sw78.song@samsung.com)
+  GMAIL_ADDRESS       (fallback용)
+  GMAIL_APP_PASSWORD  (fallback용)
+  RECIPIENT_EMAIL     (fallback용)
 """
 
 import os
@@ -29,6 +30,7 @@ KST = timezone(timedelta(hours=9))
 IMAP_HOST = "imap.gmail.com"
 SMTP_HOST = "smtp.gmail.com"
 SMTP_PORT = 465
+MAX_EMAILS_DEFAULT = 20
 
 
 def load_config() -> dict:
@@ -38,9 +40,6 @@ def load_config() -> dict:
             return json.load(f)
     except Exception:
         return {}
-
-
-MAX_EMAILS = 20  # fallback (config에서 덮어씀)
 
 
 # ── Gmail IMAP ───────────────────────────────────────────────────────────────
@@ -54,7 +53,6 @@ def search_newsletters(mail: imaplib.IMAP4_SSL, max_results: int = 20) -> list:
     """지난 24시간 내 뉴스레터/프로모션 메일 ID 목록 반환."""
     mail.select("inbox")
 
-    # Gmail 전용 검색: Promotions 카테고리 + 최근 1일
     queries = [
         'X-GM-RAW "category:promotions newer_than:1d"',
         'X-GM-RAW "unsubscribe newer_than:1d"',
@@ -69,10 +67,9 @@ def search_newsletters(mail: imaplib.IMAP4_SSL, max_results: int = 20) -> list:
         except Exception:
             pass
 
-    # fallback: 일반 SINCE 검색
     if not ids:
         since = (datetime.now(KST) - timedelta(days=1)).strftime("%d-%b-%Y")
-        _, data = mail.search(None, f"SINCE {since}")  # 따옴표 없이
+        _, data = mail.search(None, f"SINCE {since}")
         if data and data[0]:
             ids.update(data[0].split())
 
@@ -91,7 +88,6 @@ def decode_str(value: str) -> str:
 
 
 def decode_body(part) -> str:
-    # decode=True가 base64/QP 전송 인코딩을 자동 처리
     payload = part.get_payload(decode=True)
     if not payload:
         return ""
@@ -103,7 +99,6 @@ def decode_body(part) -> str:
 
 
 def extract_text(msg) -> str:
-    """이메일에서 텍스트 추출 (plain → html 우선순위)."""
     text = ""
     if msg.is_multipart():
         for part in msg.walk():
@@ -114,7 +109,6 @@ def extract_text(msg) -> str:
             if ct == "text/plain" and not text:
                 text = decode_body(part)
             elif ct == "text/html" and not text:
-                # HTML에서 태그 제거
                 raw = decode_body(part)
                 raw = re.sub(r"<style[^>]*>.*?</style>", " ", raw, flags=re.DOTALL | re.IGNORECASE)
                 raw = re.sub(r"<script[^>]*>.*?</script>", " ", raw, flags=re.DOTALL | re.IGNORECASE)
@@ -137,16 +131,9 @@ def fetch_emails(mail: imaplib.IMAP4_SSL, ids: list[str]) -> list[dict]:
             subject = decode_str(msg.get("Subject", "(제목 없음)"))
             sender = decode_str(msg.get("From", ""))
             body = extract_text(msg)
-
-            # 원문 링크 추출 (List-Post, X-Original-URL 등)
             link = msg.get("List-Archive", "") or msg.get("X-Original-URL", "")
 
-            result.append({
-                "subject": subject,
-                "sender": sender,
-                "body": body,
-                "link": link,
-            })
+            result.append({"subject": subject, "sender": sender, "body": body, "link": link})
         except Exception as e:
             print(f"  WARN: fetch error for uid {uid}: {e}")
     return result
@@ -217,11 +204,7 @@ def generate_html(emails: list[dict], today: str) -> str:
     for i, e in enumerate(emails, 1):
         email_text += f"--- [{i}] ---\n제목: {e['subject']}\n발신: {e['sender']}\n본문: {e['body'][:2000]}\n\n"
 
-    prompt = PROMPT_TEMPLATE.format(
-        count=len(emails),
-        today=today,
-        emails=email_text,
-    )
+    prompt = PROMPT_TEMPLATE.format(count=len(emails), today=today, emails=email_text)
 
     msg = client.messages.create(
         model="claude-haiku-4-5-20251001",
@@ -229,14 +212,13 @@ def generate_html(emails: list[dict], today: str) -> str:
         messages=[{"role": "user", "content": prompt}],
     )
     html = msg.content[0].text.strip()
-    # 마크다운 코드블록 제거 (```html ... ``` 또는 ``` ... ```)
     html = re.sub(r"^```[a-zA-Z]*\n?", "", html)
     html = re.sub(r"\n?```$", "", html)
     return html.strip()
 
 
 # ── Gmail SMTP 발송 ──────────────────────────────────────────────────────────
-def send_email(address: str, app_password: str, recipient: str, subject: str, html: str):
+def send_email(address: str, app_password: str, recipient, subject: str, html: str):
     msg = MIMEMultipart("alternative")
     recipients = [recipient] if isinstance(recipient, str) else recipient
     msg["Subject"] = subject
@@ -253,39 +235,57 @@ def send_email(address: str, app_password: str, recipient: str, subject: str, ht
 def main():
     cfg = load_config()
 
-    # enabled 체크 — False면 조용히 종료
-    if cfg.get("enabled") is False:
-        print("서비스 비활성화 상태 (config.enabled=false). 건너뜀.")
-        return
+    # workflow_dispatch이면 시간 체크 없이 모든 활성 SET 실행
+    force_run = os.environ.get("TRIGGER_EVENT", "schedule") == "workflow_dispatch"
 
-    max_emails = int(cfg.get("max_emails", MAX_EMAILS))
     now_kst = datetime.now(KST)
+    current_hhmm = now_kst.strftime("%H:%M")
     today   = now_kst.strftime("%Y년 %m월 %d일")
     subject = f"📋 뉴스레터 요약 | {now_kst.strftime('%Y.%m.%d')}"
+
+    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작 | force={force_run}")
 
     # email_sets 로드 (없으면 env var fallback)
     raw_sets = cfg.get("email_sets") or []
     sets = [s for s in raw_sets if s.get("gmail_address") and s.get("app_password") and s.get("recipients")]
     if not sets:
         sets = [{
+            "name": "기본",
             "gmail_address": os.environ["GMAIL_ADDRESS"],
             "app_password":  os.environ["GMAIL_APP_PASSWORD"],
             "recipients":    [os.environ.get("RECIPIENT_EMAIL", os.environ["GMAIL_ADDRESS"])],
+            "enabled": True,
+            "schedule_times": ["09:00"],
+            "max_emails": MAX_EMAILS_DEFAULT,
         }]
 
-    print(f"[{now_kst.strftime('%Y-%m-%d %H:%M KST')}] 시작 | SET: {len(sets)}개")
+    print(f"전체 SET: {len(sets)}개")
 
-    # SET별 독립 실행: 읽기 → 요약 → 발송
     for i, s in enumerate(sets):
+        set_name   = s.get("name") or f"SET {i+1}"
         addr       = s["gmail_address"]
         app_pwd    = s["app_password"]
         recipients = s["recipients"]
-        print(f"\n── SET {i+1}: {addr} → {recipients}")
+
+        # 활성화 체크
+        if not s.get("enabled", True):
+            print(f"\n── SET {i+1} [{set_name}]: 비활성화 → 건너뜀")
+            continue
+
+        # 발송 시간 체크 (강제 실행이 아닐 때만)
+        if not force_run:
+            set_times = s.get("schedule_times") or ["09:00"]
+            if current_hhmm not in set_times:
+                print(f"\n── SET {i+1} [{set_name}]: {current_hhmm}이 발송 시간 {set_times}에 해당 없음 → 건너뜀")
+                continue
+
+        max_emails = int(s.get("max_emails") or MAX_EMAILS_DEFAULT)
+        print(f"\n── SET {i+1} [{set_name}]: {addr} → {recipients} (최대 {max_emails}건)")
 
         try:
-            mail    = connect_imap(addr, app_pwd)
-            ids     = search_newsletters(mail, max_results=max_emails)
-            emails  = fetch_emails(mail, ids)
+            mail   = connect_imap(addr, app_pwd)
+            ids    = search_newsletters(mail, max_results=max_emails)
+            emails = fetch_emails(mail, ids)
             mail.logout()
             print(f"   {len(emails)}건 수집")
         except Exception as e:

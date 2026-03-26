@@ -1,11 +1,11 @@
 name: Daily Newsletter Digest
 
 on:
-  # UTC 00:00 = KST 09:00
+  # 매시 정각 실행 — 각 SET이 자체 발송 시간(schedule_times)을 체크
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 * * * *"
 
-  # 수동 실행 (테스트용)
+  # 수동 실행 (어드민 "지금 바로 실행" 버튼 → 시간 체크 없이 모든 활성 SET 실행)
   workflow_dispatch:
 
 jobs:
@@ -33,4 +33,5 @@ jobs:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
+          TRIGGER_EVENT: ${{ github.event_name }}
         run: python scripts/daily_digest.py

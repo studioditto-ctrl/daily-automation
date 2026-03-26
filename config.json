@@ -1,12 +1,13 @@
 {
   "email_sets": [
     {
+      "name": "기본 SET",
       "gmail_address": "studioditto@gmail.com",
       "app_password": "",
-      "recipients": ["sw78.song@samsung.com"]
+      "recipients": ["sw78.song@samsung.com"],
+      "enabled": true,
+      "schedule_times": ["09:00"],
+      "max_emails": 20
     }
-  ],
-  "max_emails": 20,
-  "enabled": true,
-  "schedule_times": ["09:00"]
+  ]
 }
