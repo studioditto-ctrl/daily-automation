@@ -1,3 +1,17 @@
 {
-  "email_sets": []
+  "email_sets": [
+    {
+      "name": "뉴스레터",
+      "gmail_address": "studioditto@gmail.com",
+      "app_password": "Satoko78!!",
+      "recipients": [
+        "sw78.song@samsung.com"
+      ],
+      "enabled": true,
+      "schedule_times": [
+        "09:00"
+      ],
+      "max_emails": 20
+    }
+  ]
 }
